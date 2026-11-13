@@ -1,0 +1,10 @@
+node_modules
+.next
+.npm-cache
+.vc-home
+assets
+docs
+.env.local
+.git
+*.zip
+data/articles.backup-*.json
