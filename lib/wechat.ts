@@ -58,7 +58,7 @@ async function buildPlan(
   if (hit) {
     try {
       const obj = JSON.parse(hit);
-      const order = Array.isArray(obj.order) ? normalizeOrder(obj.order, items.length) : identity.order;
+      const order = Array.isArray(obj.order) ? sanitizeZeroBased(obj.order, items.length) : identity.order;
       return { title: String(obj.title || identity.title), theme: String(obj.theme || ''), order };
     } catch {
       /* 缓存坏了就重新生成 */
@@ -132,6 +132,21 @@ async function buildPlan(
   }
   }
   return identity;
+}
+
+/** 校正已经是 0 基的顺序 */
+function sanitizeZeroBased(raw: unknown[], n: number): number[] {
+  const seen = new Set<number>();
+  const out: number[] = [];
+  for (const v of raw) {
+    const i = Number(v);
+    if (Number.isInteger(i) && i >= 0 && i < n && !seen.has(i)) {
+      seen.add(i);
+      out.push(i);
+    }
+  }
+  for (let i = 0; i < n; i++) if (!seen.has(i)) out.push(i);
+  return out;
 }
 
 /** 把模型给的顺序修正成 0..n-1 的完整排列 */
