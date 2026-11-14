@@ -109,7 +109,7 @@ export function listArticles(): Article[] {
     .get() as { e: string | null };
   const edition = latest?.e ?? '';
   const rows = db
-    .prepare('SELECT * FROM articles WHERE edition = ? ORDER BY score DESC NULLS LAST')
+    .prepare('SELECT * FROM articles WHERE edition = ? ORDER BY score DESC NULLS LAST, id ASC')
     .all(edition) as ArticleRow[];
   return rows.map(toArticle);
 }
