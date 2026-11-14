@@ -11,6 +11,7 @@ import path from 'node:path';
 import { cleanTitle } from '../lib/title.mjs';
 import { fetchArticle } from '../lib/extract.mjs';
 import { getDb } from '../lib/db.mjs';
+import { findDuplicates } from '../lib/dedupe.mjs';
 
 const COUNT = Number(process.argv[2] ?? 5);
 const db = getDb();
@@ -52,11 +53,17 @@ const pool = db
 
 console.log(`\n清理旧速览 ${oldCount} 条，候选 ${pool.length} 条，逐条核对发布日期…\n`);
 
+const dupIds = await findDuplicates(
+  pool.slice(0, 25).map((c) => ({ id: c.id, title: c.title, sourceName: c.sourceName ?? '' }))
+);
+if (dupIds.size) console.log(`速览去重：合并 ${dupIds.size} 条同题\n`);
+
 const today = [];
 let cursor = 0;
 async function worker() {
   while (cursor < pool.length && today.length < COUNT * 3) {
     const c = pool[cursor++];
+    if (dupIds.has(c.id)) continue;
     try {
       const r = await fetchArticle(c.url);
       const date = r.publishedAt ?? null;

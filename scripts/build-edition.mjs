@@ -8,6 +8,7 @@ import { getDb } from '../lib/db.mjs';
 import { fetchArticle } from '../lib/extract.mjs';
 import { generateBrief } from '../lib/llm.mjs';
 import { cleanTitle } from '../lib/title.mjs';
+import { findDuplicates } from '../lib/dedupe.mjs';
 
 const COUNT = Number(process.argv[2] ?? 8);
 const PER_SOURCE_MAX = 2;      // 同一来源最多 2 篇，保证多样性
@@ -54,11 +55,17 @@ const pool = db
 // 已在文章库里的跳过
 const have = new Set(db.prepare('SELECT url FROM articles').all().map((r) => r.url));
 
+// 先让模型找出同一件事的多条，只留分数最高的
+const dupIds = await findDuplicates(
+  pool.slice(0, 30).map((c) => ({ id: c.id, title: c.title, sourceName: c.source_name ?? '' }))
+);
+if (dupIds.size) console.log(`去重：合并 ${dupIds.size} 条同题报道\n`);
+
 const picked = [];
 const perSource = new Map();
 for (const c of pool) {
   if (picked.length >= COUNT) break;
-  if (have.has(c.url)) continue;
+  if (have.has(c.url) || dupIds.has(c.id)) continue;
   const n = perSource.get(c.source_id) ?? 0;
   if (n >= PER_SOURCE_MAX) continue;
   perSource.set(c.source_id, n + 1);
