@@ -9,11 +9,21 @@ interface Msg {
   content: string;
 }
 
+
+function newAid() {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+  } catch {}
+  return 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+}
+
 function aid(): string {
   if (typeof window === 'undefined') return '';
   let v = localStorage.getItem('dr_aid');
   if (!v) {
-    v = crypto.randomUUID();
+    v = newAid();
     localStorage.setItem('dr_aid', v);
   }
   return v;
@@ -67,8 +77,8 @@ export default function ChatPanel({
       } else {
         setError(data.message ?? '对话失败');
       }
-    } catch {
-      setError('网络错误');
+    } catch (e) {
+      setError(e instanceof Error ? `网络错误：${e.message}` : '网络错误');
     } finally {
       setBusy(false);
     }
