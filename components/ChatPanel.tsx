@@ -46,7 +46,7 @@ export default function ChatPanel({
   const [nextQuestion, setNextQuestion] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
   const started = useRef(false);
-  const endRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
 
   async function send(text: string) {
     const q = text.trim();
@@ -92,8 +92,10 @@ export default function ChatPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 只滚动对话内部，不要带着整个页面跳
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = bodyRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [messages, busy]);
 
   return (
@@ -107,7 +109,7 @@ export default function ChatPanel({
 
       <div className="chat-article">{article.title}</div>
 
-      <div className="chat-body">
+      <div className="chat-body" ref={bodyRef}>
         {messages.length === 0 && !busy && (
           <p className="chat-tip">点下面的问题开始，或者直接输入你想问的。</p>
         )}
@@ -134,7 +136,6 @@ export default function ChatPanel({
         )}
 
         {error && <div className={`chat-error ${blocked ? 'blocked' : ''}`}>{error}</div>}
-        <div ref={endRef} />
       </div>
 
       <form
