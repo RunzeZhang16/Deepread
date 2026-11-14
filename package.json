@@ -17,13 +17,15 @@
     "migrate": "node scripts/migrate.mjs",
     "edition": "NODE_EXTRA_CA_CERTS=${NODE_EXTRA_CA_CERTS:-/etc/ssl/cert.pem} node --env-file-if-exists=.env.local scripts/build-edition.mjs",
     "stats": "NODE_EXTRA_CA_CERTS=${NODE_EXTRA_CA_CERTS:-/etc/ssl/cert.pem} node scripts/stats.mjs",
-    "enrich-all": "NODE_EXTRA_CA_CERTS=${NODE_EXTRA_CA_CERTS:-/etc/ssl/cert.pem} node scripts/enrich-all.mjs"
+    "enrich-all": "NODE_EXTRA_CA_CERTS=${NODE_EXTRA_CA_CERTS:-/etc/ssl/cert.pem} node scripts/enrich-all.mjs",
+    "wechat-mail": "NODE_EXTRA_CA_CERTS=${NODE_EXTRA_CA_CERTS:-/etc/ssl/cert.pem} node --env-file-if-exists=.env.local scripts/send-wechat-mail.mjs"
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
     "better-sqlite3": "^13.1.1",
     "jsdom": "^27.0.1",
     "next": "15.5.28",
+    "nodemailer": "^6.9.16",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "rss-parser": "^3.13.0"
