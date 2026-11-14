@@ -222,7 +222,12 @@ export default function Home() {
                   </p>
 
                   {chat?.article.id === a.id && (
-                    <ChatPanel article={a} initialQuestion={chat.question} onClose={() => setChat(null)} />
+                    <ChatPanel
+                      key={chat.question}
+                      article={a}
+                      initialQuestion={chat.question}
+                      onClose={() => setChat(null)}
+                    />
                   )}
                 </article>
               ))}

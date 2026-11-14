@@ -70,6 +70,10 @@ export default function ChatPanel({
         setMessages([...next, { role: 'assistant', content: data.answer }]);
         setRemaining(typeof data.remaining === 'number' ? data.remaining : null);
         setNextQuestion(data.next ?? null);
+        if (typeof data.remaining === 'number' && data.remaining <= 0) {
+          setBlocked(true);
+          setError('感谢您的好奇心，但是这篇文章的对话额度已经用完啦，更多轮次的功能正在开发中，敬请期待');
+        }
       } else if (data.code === 'limit') {
         setBlocked(true);
         setRemaining(0);
