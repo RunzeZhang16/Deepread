@@ -1,0 +1,10 @@
+const res = await fetch('https://www.inewsweek.cn/', { headers: { 'User-Agent': 'Mozilla/5.0' } });
+console.log('content-type:', res.headers.get('content-type'));
+const buf = Buffer.from(await res.arrayBuffer());
+const head = buf.subarray(0, 2000).toString('latin1');
+const m = head.match(/charset=["']?([\w-]+)/i);
+const charset = m ? m[1].toLowerCase() : 'utf-8';
+console.log('检测 charset:', charset);
+const text = new TextDecoder(charset === 'gb2312' ? 'gbk' : charset).decode(buf);
+const title = text.match(/<title>([^<]+)/)?.[1];
+console.log('标题:', title);

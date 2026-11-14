@@ -59,26 +59,45 @@ const dupIds = await findDuplicates(
 if (dupIds.size) console.log(`速览去重：合并 ${dupIds.size} 条同题\n`);
 
 const today = [];
-let cursor = 0;
-async function worker() {
-  while (cursor < pool.length && today.length < COUNT * 3) {
-    const c = pool[cursor++];
-    if (dupIds.has(c.id)) continue;
+const perSource = new Map();
+
+// 按来源分队列，轮流取，保证速览不是一家刷屏
+const queues = new Map();
+for (const c of pool) {
+  if (dupIds.has(c.id)) continue;
+  if (!queues.has(c.sourceId)) queues.set(c.sourceId, []);
+  queues.get(c.sourceId).push(c);
+}
+const order = [...queues.keys()];
+
+let round = 0;
+let guard = 0;
+while (today.length < COUNT * 3 && guard < 200) {
+  let addedThisRound = false;
+  for (const sid of order) {
+    const q = queues.get(sid);
+    const c = q?.[round];
+    if (!c) continue;
+    addedThisRound = true;
+    guard++;
+    const n = perSource.get(sid) ?? 0;
+    if (n >= 2) continue;          // 同一来源最多 2 条
     try {
       const r = await fetchArticle(c.url);
-      const date = r.publishedAt ?? null;
-      if (isToday(date)) {
-        today.push({ ...c, publishedAt: date });
-        console.log(`[今天] ${(date ?? '').slice(0, 10)}  ${c.title.slice(0, 34)}`);
+      if (isToday(r.publishedAt)) {
+        today.push({ ...c, publishedAt: r.publishedAt });
+        perSource.set(sid, n + 1);
+        console.log(`[今天] ${r.publishedAt.slice(0, 10)}  ${c.sourceName}  ${c.title.slice(0, 30)}`);
       }
     } catch {
       /* 抓不到就跳过 */
     }
   }
+  if (!addedThisRound) break;
+  round++;
 }
-await Promise.all(Array.from({ length: 6 }, worker));
 
-today.sort((a, b) => b.score - a.score);
+// 按轮转顺序取，不按分数排——保证来源多样
 const picked = today.slice(0, COUNT);
 
 if (picked.length === 0) {

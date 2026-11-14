@@ -7,7 +7,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import Parser from 'rss-parser';
 import { titleBlocklist, MAX_AGE_DAYS, isBlockedSource } from '../config/feeds.mjs';
-import { extractArticles } from '../lib/listpage.mjs';
+import { extractArticles, fetchHtml } from '../lib/listpage.mjs';
 import { getDb } from '../lib/db.mjs';
 
 const db = getDb();
@@ -98,13 +98,7 @@ async function fetchFeed(feed) {
 /** 列表页源：抓栏目页，把文章标题和链接捞出来（没有发布时间） */
 async function fetchList(feed) {
   const started = Date.now();
-  const res = await fetch(feed.url, {
-    headers: { 'User-Agent': UA, Accept: 'text/html,*/*' },
-    signal: AbortSignal.timeout(15000),
-    redirect: 'follow',
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const html = await res.text();
+  const html = await fetchHtml(feed.url);
   const links = extractArticles(html, feed.url);
   if (links.length === 0) throw new Error('页面里没找到文章链接');
 
