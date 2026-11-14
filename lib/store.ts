@@ -1,8 +1,9 @@
-import fs from 'node:fs';
 import path from 'node:path';
+import fs from 'node:fs';
 import { fetchArticle, toStored } from './extract.mjs';
 import { generateBrief, hasLLM } from './llm';
 import { cleanTitle } from './title.mjs';
+import { getDb, parseQuestions } from './db';
 
 export type Status = 'full' | 'meta_only' | 'failed';
 
@@ -26,21 +27,15 @@ export interface Article {
 
   /** 精排分数，从召回池收录时带过来 */
   score?: number;
-  /** 导读（W2）
-  /** 只收标题：不生成摘要和问题，正文只用来数个数 */
+  /** 只收标题：不生成摘要和问题 */
   titleOnly?: boolean;
   summary?: string;
   questions?: string[];
-  /** @deprecated 旧字段，只用于读老数据 */
-  question?: string;
   enrichedAt?: string;
   enrichError?: string;
 }
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const DB = path.join(DATA_DIR, 'articles.json');
-
-/** 由 URL 派生稳定的短 id，不需要额外存字段 */
+/** 由 URL 派生稳定 id */
 export function idFor(url: string): string {
   let h = 0x811c9dc5;
   for (let i = 0; i < url.length; i++) {
@@ -50,52 +45,101 @@ export function idFor(url: string): string {
   return (h >>> 0).toString(36);
 }
 
-interface DbFile {
-  updatedAt?: string;
-  articles: Omit<Article, 'id'>[];
+interface ArticleRow {
+  id: string;
+  url: string;
+  title: string | null;
+  account: string | null;
+  site: string | null;
+  status: string;
+  word_count: number;
+  excerpt: string | null;
+  summary: string | null;
+  questions: string | null;
+  published_at: string | null;
+  fetched_at: string | null;
+  category: string | null;
+  title_only: number;
+  score: number | null;
+  note: string | null;
+  error: string | null;
+  enrich_error: string | null;
 }
 
-function readDb(): DbFile {
-  try {
-    const raw = JSON.parse(fs.readFileSync(DB, 'utf8'));
-    return { updatedAt: raw.updatedAt, articles: Array.isArray(raw.articles) ? raw.articles : [] };
-  } catch {
-    return { articles: [] };
-  }
-}
-
-function writeDb(articles: Omit<Article, 'id'>[]) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  // 清掉历史遗留字段（hook 已废弃）
-  const clean = articles.map((a) => {
-    const copy = { ...a } as Record<string, unknown>;
-    delete copy.hook;
-    return copy as unknown as Omit<Article, 'id'>;
-  });
-  fs.writeFileSync(DB, JSON.stringify({ updatedAt: new Date().toISOString(), articles: clean }, null, 2));
+function toArticle(row: ArticleRow): Article {
+  return {
+    id: row.id,
+    url: row.url,
+    status: row.status as Status,
+    site: row.site ?? undefined,
+    title: row.title ?? '',
+    account: row.account ?? undefined,
+    wordCount: row.word_count ?? 0,
+    excerpt: row.excerpt ?? undefined,
+    publishedAt: row.published_at,
+    fetchedAt: row.fetched_at ?? '',
+    category: (row.category as Category | null) ?? null,
+    note: row.note ?? undefined,
+    error: row.error ?? undefined,
+    score: row.score ?? undefined,
+    titleOnly: row.title_only ? true : undefined,
+    summary: row.summary ?? undefined,
+    questions: parseQuestions(row.questions),
+    enrichError: row.enrich_error ?? undefined,
+  };
 }
 
 export function listArticles(): Article[] {
-  const db = readDb();
-  return db.articles
-    .map((a) => ({
-      ...a,
-      id: idFor(a.url),
-      category: a.category ?? null,
-      questions: a.questions ?? (a.question ? [a.question] : undefined),
-    }))
-    .sort((a, b) => Date.parse(b.fetchedAt) - Date.parse(a.fetchedAt));
+  const rows = getDb()
+    .prepare('SELECT * FROM articles ORDER BY fetched_at DESC')
+    .all() as ArticleRow[];
+  return rows.map(toArticle);
 }
 
 export function findArticle(id: string): Article | undefined {
-  return listArticles().find((a) => a.id === id);
+  const row = getDb().prepare('SELECT * FROM articles WHERE id = ?').get(id) as ArticleRow | undefined;
+  return row ? toArticle(row) : undefined;
 }
 
-/** 抓正文 → 生成导读 → 只把元数据和导读落库（正文丢弃） */
+function insertArticle(rec: Article) {
+  getDb()
+    .prepare(
+      `INSERT INTO articles (id, url, title, account, site, status, word_count, excerpt, summary, questions,
+                             published_at, fetched_at, category, title_only, score, note, error, enrich_error)
+       VALUES (@id, @url, @title, @account, @site, @status, @wordCount, @excerpt, @summary, @questions,
+               @publishedAt, @fetchedAt, @category, @titleOnly, @score, @note, @error, @enrichError)
+       ON CONFLICT(url) DO UPDATE SET
+         title=excluded.title, account=excluded.account, summary=excluded.summary,
+         questions=excluded.questions, word_count=excluded.word_count, title_only=excluded.title_only,
+         score=excluded.score, status=excluded.status, enrich_error=excluded.enrich_error`
+    )
+    .run({
+      id: rec.id,
+      url: rec.url,
+      title: rec.title ?? '',
+      account: rec.account ?? null,
+      site: rec.site ?? null,
+      status: rec.status,
+      wordCount: rec.wordCount ?? 0,
+      excerpt: rec.excerpt ?? '',
+      summary: rec.summary ?? null,
+      questions: rec.questions ? JSON.stringify(rec.questions) : null,
+      publishedAt: rec.publishedAt ?? null,
+      fetchedAt: rec.fetchedAt ?? new Date().toISOString(),
+      category: rec.category ?? null,
+      titleOnly: rec.titleOnly ? 1 : 0,
+      score: typeof rec.score === 'number' ? rec.score : null,
+      note: rec.note ?? null,
+      error: rec.error ?? null,
+      enrichError: rec.enrichError ?? null,
+    });
+}
+
+/** 抓正文 → 生成导读 → 落库（正文丢弃） */
 async function buildRecord(
   url: string,
   opts: { titleOnly?: boolean; account?: string; score?: number } = {}
-): Promise<{ record: Omit<Article, 'id'>; error?: string }> {
+): Promise<{ record: Partial<Article> & { title: string; url: string; status: Status; fetchedAt: string }; error?: string }> {
   const fetched = (await fetchArticle(url)) as Record<string, unknown> & {
     body?: string;
     status: Status;
@@ -105,26 +149,26 @@ async function buildRecord(
     note?: string;
   };
 
-  const base = toStored(fetched) as Omit<Article, 'id'>;
-  // 用调用方给的来源名（来自源注册表），比从页面里猜的准
+  const base = toStored(fetched) as Partial<Article>;
   if (opts.account) {
     base.account = opts.account;
-    base.title = cleanTitle(base.title, opts.account);
+    base.title = cleanTitle(base.title ?? '', opts.account);
   }
   if (typeof opts.score === 'number') base.score = opts.score;
 
-  if (fetched.status !== 'full') {
-    return { record: base };
-  }
+  const record = {
+    ...base,
+    url,
+    title: base.title ?? '',
+    status: (base.status ?? 'full') as Status,
+    fetchedAt: new Date().toISOString(),
+  };
 
-  // 只收标题：正文抓到了也只用来算字数，不调模型
-  if (opts.titleOnly) {
-    return { record: { ...base, titleOnly: true } };
-  }
+  if (fetched.status !== 'full') return { record };
 
-  if (!hasLLM()) {
-    return { record: { ...base, enrichError: '没有配置 DEEPSEEK_API_KEY' } };
-  }
+  if (opts.titleOnly) return { record: { ...record, titleOnly: true } };
+
+  if (!hasLLM()) return { record: { ...record, enrichError: '没有配置 DEEPSEEK_API_KEY' } };
 
   const result = await generateBrief({
     title: fetched.title,
@@ -132,13 +176,11 @@ async function buildRecord(
     body: fetched.body ?? '',
   });
 
-  if (!result.ok) {
-    return { record: { ...base, enrichError: result.error }, error: result.error };
-  }
+  if (!result.ok) return { record: { ...record, enrichError: result.error }, error: result.error };
 
   return {
     record: {
-      ...base,
+      ...record,
       summary: result.brief.summary,
       questions: result.brief.questions,
       enrichedAt: new Date().toISOString(),
@@ -169,15 +211,9 @@ export async function addArticle(
     return { ok: false, reason: 'invalid_url', message: '只支持 http / https 链接' };
   }
 
-  const db = readDb();
-  const existing = db.articles.find((a) => a.url === url);
+  const existing = getDb().prepare('SELECT * FROM articles WHERE url = ?').get(url) as ArticleRow | undefined;
   if (existing) {
-    return {
-      ok: true,
-      reason: 'duplicate',
-      article: { ...existing, id: idFor(url), category: existing.category ?? null },
-      message: '这条已经在列表里了',
-    };
+    return { ok: true, reason: 'duplicate', article: toArticle(existing), message: '这条已经在列表里了' };
   }
 
   let built: Awaited<ReturnType<typeof buildRecord>>;
@@ -191,33 +227,26 @@ export async function addArticle(
     };
   }
 
-  writeDb([built.record, ...db.articles]);
-  return {
-    ok: true,
-    article: { ...built.record, id: idFor(url), category: null },
-    enrichError: built.error,
-  };
+  const rec = { ...built.record, id: idFor(url), category: null } as Article;
+  insertArticle(rec);
+  return { ok: true, article: findArticle(rec.id), enrichError: built.error };
 }
 
-/** 给已有文章补/重生成导读（会重新抓一次正文） */
+/** 给已有文章补/重生成导读（重新抓一次正文） */
 export async function enrichArticle(
   id: string
 ): Promise<{ ok: boolean; article?: Article; error?: string }> {
-  const db = readDb();
-  const idx = db.articles.findIndex((a) => idFor(a.url) === id);
-  if (idx === -1) return { ok: false, error: '没找到这条' };
-
-  const rec = db.articles[idx];
+  const rec = findArticle(id);
+  if (!rec) return { ok: false, error: '没找到这条' };
   if (rec.status !== 'full') return { ok: false, error: '这条没有正文，生成不了' };
   if (!hasLLM()) return { ok: false, error: '没有配置 DEEPSEEK_API_KEY' };
 
-  let fetched: { body?: string; title?: string; account?: string; status?: string };
+  let fetched: { body?: string; title?: string; account?: string };
   try {
     fetched = (await fetchArticle(rec.url)) as typeof fetched;
   } catch (e) {
     return { ok: false, error: e instanceof Error ? `重新抓取失败：${e.message}` : '重新抓取失败' };
   }
-
   if (!fetched.body) return { ok: false, error: '这次没抓到正文，稍后再试' };
 
   const result = await generateBrief({
@@ -227,42 +256,30 @@ export async function enrichArticle(
   });
 
   if (!result.ok) {
-    db.articles[idx] = { ...rec, enrichError: result.error };
-    writeDb(db.articles);
+    getDb().prepare('UPDATE articles SET enrich_error = ? WHERE id = ?').run(result.error, id);
     return { ok: false, error: result.error };
   }
 
-  // 老字段（hook / question）顺手清掉，避免脏数据
-  const { question: _legacyQuestion, ...rest } = rec;
-  db.articles[idx] = {
-    ...rest,
-    titleOnly: undefined,
-    summary: result.brief.summary,
-    questions: result.brief.questions,
-    enrichedAt: new Date().toISOString(),
-    enrichError: undefined,
-  };
-  writeDb(db.articles);
+  getDb()
+    .prepare(
+      `UPDATE articles SET summary = ?, questions = ?, title_only = 0, enrich_error = NULL WHERE id = ?`
+    )
+    .run(result.brief.summary, JSON.stringify(result.brief.questions), id);
 
-  return {
-    ok: true,
-    article: { ...db.articles[idx], id, category: db.articles[idx].category ?? null },
-  };
+  return { ok: true, article: findArticle(id) };
 }
 
 export function setCategory(id: string, category: Category): Article | undefined {
-  const db = readDb();
-  const idx = db.articles.findIndex((a) => idFor(a.url) === id);
-  if (idx === -1) return undefined;
-  db.articles[idx] = { ...db.articles[idx], category };
-  writeDb(db.articles);
-  return { ...db.articles[idx], id, category };
+  const info = getDb().prepare('UPDATE articles SET category = ? WHERE id = ?').run(category, id);
+  if (info.changes === 0) return undefined;
+  return findArticle(id);
 }
 
 export function removeArticle(id: string): boolean {
-  const db = readDb();
-  const next = db.articles.filter((a) => idFor(a.url) !== id);
-  if (next.length === db.articles.length) return false;
-  writeDb(next);
-  return true;
+  return getDb().prepare('DELETE FROM articles WHERE id = ?').run(id).changes > 0;
+}
+
+/** 兼容旧路径：确保 data 目录存在（有些脚本会用） */
+export function dataDir(): string {
+  return path.join(process.cwd(), 'data');
 }

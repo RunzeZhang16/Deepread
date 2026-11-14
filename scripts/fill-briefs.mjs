@@ -10,9 +10,10 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { cleanTitle } from '../lib/title.mjs';
 import { fetchArticle } from '../lib/extract.mjs';
+import { getDb } from '../lib/db.mjs';
 
-const DATA = path.join(process.cwd(), 'data');
 const COUNT = Number(process.argv[2] ?? 5);
+const db = getDb();
 
 /** 按北京时间判断是不是今天 */
 function isToday(iso) {
@@ -24,23 +25,30 @@ function isToday(iso) {
   return fmt(d) === fmt(new Date());
 }
 
-const feeds = JSON.parse(await fs.readFile(path.join(DATA, 'feeds.json'), 'utf8')).feeds ?? [];
-const briefSourceIds = new Set(feeds.filter((f) => f.briefOnly === true).map((f) => f.id));
-
-const cands = JSON.parse(await fs.readFile(path.join(DATA, 'candidates.json'), 'utf8'));
-const arts = JSON.parse(await fs.readFile(path.join(DATA, 'articles.json'), 'utf8'));
-
-const have = new Set(arts.articles.map((a) => a.url));
+const briefSourceIds = new Set(
+  db.prepare('SELECT id FROM sources WHERE brief_only = 1').all().map((r) => r.id)
+);
+const have = new Set(db.prepare('SELECT url FROM articles').all().map((r) => r.url));
 
 // 清掉旧的速览
-const oldCount = arts.articles.filter((a) => a.titleOnly).length;
-arts.articles = arts.articles.filter((a) => !a.titleOnly);
+const oldCount = db.prepare('SELECT COUNT(*) n FROM articles WHERE title_only = 1').get().n;
+db.prepare('DELETE FROM articles WHERE title_only = 1').run();
 
-const pool = cands.items
+const pool = db
+  .prepare(`SELECT * FROM candidates WHERE status != 'discarded' AND score IS NOT NULL ORDER BY score DESC`)
+  .all()
+  .map((r) => ({
+    id: r.id,
+    sourceId: r.source_id,
+    sourceName: r.source_name,
+    title: r.title,
+    url: r.url,
+    score: r.score,
+    category: r.category,
+    publishedAt: r.published_at,
+  }))
   .filter((c) => briefSourceIds.has(c.sourceId))
-  .filter((c) => !have.has(c.url))
-  .filter((c) => typeof c.score === 'number')
-  .sort((a, b) => b.score - a.score);
+  .filter((c) => !have.has(c.url));
 
 console.log(`\n清理旧速览 ${oldCount} 条，候选 ${pool.length} 条，逐条核对发布日期…\n`);
 
@@ -70,27 +78,33 @@ if (picked.length === 0) {
   console.log('\n⚠ 今天没有找到当日发布的条目');
 } else {
   const now = new Date().toISOString();
-  for (const c of picked) {
-    arts.articles.push({
-      url: c.url,
-      status: 'meta_only',
-      site: c.sourceId,
-      title: cleanTitle(c.title, c.sourceName),
-      account: c.sourceName,
-      wordCount: 0,
-      excerpt: '',
-      publishedAt: c.publishedAt ?? null,
-      fetchedAt: now,
-      category: c.category ?? null,
-      note: '仅标题',
-      titleOnly: true,
-      score: c.score,
-    });
-    const target = cands.items.find((i) => i.id === c.id);
-    if (target) target.status = 'promoted';
-  }
-}
+  const ins = db.prepare(`
+    INSERT INTO articles (id, url, title, account, site, status, word_count, excerpt, summary, questions,
+                          published_at, fetched_at, category, title_only, score, note)
+    VALUES (@id, @url, @title, @account, @site, 'meta_only', 0, '', NULL, NULL,
+            @publishedAt, @fetchedAt, @category, 1, @score, '仅标题')
+    ON CONFLICT(url) DO NOTHING
+  `);
+  const mark = db.prepare("UPDATE candidates SET status = 'promoted' WHERE id = ?");
+  const crypto = await import('node:crypto');
+  const idFor = (u) => crypto.createHash('sha1').update(u).digest('hex').slice(0, 12);
 
-await fs.writeFile(path.join(DATA, 'articles.json'), JSON.stringify(arts, null, 2));
-await fs.writeFile(path.join(DATA, 'candidates.json'), JSON.stringify(cands, null, 2));
+  const tx = db.transaction(() => {
+    for (const c of picked) {
+      ins.run({
+        id: idFor(c.url),
+        url: c.url,
+        title: cleanTitle(c.title, c.sourceName),
+        account: c.sourceName,
+        site: c.sourceId,
+        publishedAt: c.publishedAt ?? null,
+        fetchedAt: now,
+        category: c.category ?? null,
+        score: c.score,
+      });
+      mark.run(c.id);
+    }
+  });
+  tx();
+}
 console.log(`\n速览 ${picked.length} 条（今日发布）`);

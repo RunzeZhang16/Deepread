@@ -13,10 +13,12 @@
     "import-opml": "NODE_EXTRA_CA_CERTS=${NODE_EXTRA_CA_CERTS:-/etc/ssl/cert.pem} node scripts/import-opml.mjs",
     "rank": "NODE_EXTRA_CA_CERTS=${NODE_EXTRA_CA_CERTS:-/etc/ssl/cert.pem} node --env-file=.env.local scripts/rank.mjs",
     "briefs": "NODE_EXTRA_CA_CERTS=${NODE_EXTRA_CA_CERTS:-/etc/ssl/cert.pem} node scripts/fill-briefs.mjs",
-    "publish": "NODE_EXTRA_CA_CERTS=${NODE_EXTRA_CA_CERTS:-/etc/ssl/cert.pem} node scripts/publish.mjs"
+    "publish": "NODE_EXTRA_CA_CERTS=${NODE_EXTRA_CA_CERTS:-/etc/ssl/cert.pem} node scripts/publish.mjs",
+    "migrate": "node scripts/migrate.mjs"
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
+    "better-sqlite3": "^13.1.1",
     "jsdom": "^27.0.1",
     "next": "15.5.28",
     "react": "19.0.0",
@@ -24,6 +26,7 @@
     "rss-parser": "^3.13.0"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",

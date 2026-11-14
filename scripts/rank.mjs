@@ -6,8 +6,9 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { getDb } from '../lib/db.mjs';
 
-const DB = path.join(process.cwd(), 'data', 'candidates.json');
+const db = getDb();
 const KEY = process.env.DEEPSEEK_API_KEY || process.env.LLM_API_KEY || '';
 const BASE = process.env.LLM_BASE_URL || 'https://api.deepseek.com';
 const MODEL = process.env.LLM_MODEL_RANK || process.env.LLM_MODEL || 'deepseek-flash';
@@ -109,9 +110,10 @@ async function main() {
     process.exit(1);
   }
 
-  const data = JSON.parse(await fs.readFile(DB, 'utf8'));
-  const items = data.items ?? [];
-  const todo = items.filter((i) => i.status === 'new' && typeof i.score !== 'number');
+  const todo = db
+    .prepare("SELECT * FROM candidates WHERE status = 'new' AND score IS NULL")
+    .all()
+    .map((r) => ({ id: r.id, sourceName: r.source_name ?? '', title: r.title, summary: r.summary ?? '' }));
 
   if (todo.length === 0) {
     console.log('没有需要打分的条目。');
@@ -150,24 +152,22 @@ async function main() {
   }
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
 
+  const upd = db.prepare('UPDATE candidates SET score = ?, reason = ? WHERE id = ?');
   let updated = 0;
-  for (const it of items) {
-    const s = scoreById.get(it.id);
-    if (s) {
-      it.score = s.score;
-      it.reason = s.reason;
-      updated++;
+  const tx = db.transaction(() => {
+    for (const [id, v] of scoreById) {
+      updated += upd.run(v.score, v.reason, id).changes;
     }
-  }
-  data.items = items;
-  data.rankedAt = new Date().toISOString();
-  await fs.writeFile(DB, JSON.stringify(data, null, 2));
+  });
+  tx();
 
-  const ranked = items.filter((i) => typeof i.score === 'number').sort((a, b) => b.score - a.score);
+  const ranked = db
+    .prepare('SELECT score, source_name, title FROM candidates WHERE score IS NOT NULL ORDER BY score DESC')
+    .all();
   console.log(`\n—— 完成 —— 本次打分 ${updated} 条，累计已评分 ${ranked.length} 条\n`);
   console.log('前 15 名：');
   for (const it of ranked.slice(0, 15)) {
-    console.log(`  ${String(it.score).padStart(3)}  ${it.sourceName.padEnd(10, ' ')} ${it.title.slice(0, 44)}`);
+    console.log(`  ${String(it.score).padStart(3)}  ${String(it.source_name).padEnd(10, ' ')} ${String(it.title).slice(0, 44)}`);
   }
 }
 

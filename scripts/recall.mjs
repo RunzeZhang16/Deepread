@@ -3,16 +3,14 @@
 //
 // 用法：npm run recall
 
-import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import Parser from 'rss-parser';
 import { titleBlocklist, MAX_AGE_DAYS, isBlockedSource } from '../config/feeds.mjs';
 import { extractArticles } from '../lib/listpage.mjs';
+import { getDb } from '../lib/db.mjs';
 
-const DATA = path.join(process.cwd(), 'data');
-const DB = path.join(DATA, 'candidates.json');
-const FEEDS = path.join(DATA, 'feeds.json');
+const db = getDb();
 const PER_FEED_LIMIT = 20;
 
 const parser = new Parser({ timeout: 15000 });
@@ -123,19 +121,10 @@ async function fetchList(feed) {
 }
 
 async function main() {
-  await fs.mkdir(DATA, { recursive: true });
-
-  let previous = { items: [] };
-  try {
-    previous = JSON.parse(await fs.readFile(DB, 'utf8'));
-  } catch {
-    /* 第一次跑，没有旧数据 */
-  }
-  const oldById = new Map((previous.items ?? []).map((i) => [i.id, i]));
-
-  const registry = JSON.parse(await fs.readFile(FEEDS, 'utf8'));
+  const registry = { feeds: db.prepare('SELECT id, name, url, category, weight, enabled, type, brief_only FROM sources').all() };
   const active = [];
-  for (const f of registry.feeds ?? []) {
+  for (const raw of registry.feeds ?? []) {
+    const f = { ...raw, briefOnly: !!raw.brief_only, enabled: !!raw.enabled };
     if (!f.enabled) continue;
     const why = isBlockedSource(f);
     if (why) {
@@ -193,7 +182,7 @@ async function main() {
       seenTitle.add(tk);
 
       const id = idFor(it.url);
-      const old = oldById.get(id);
+      const old = db.prepare('SELECT status, score, reason FROM candidates WHERE id = ?').get(id);
       items.push({
         id,
         sourceId: feed.id,
@@ -253,7 +242,41 @@ async function main() {
     })),
   };
 
-  await fs.writeFile(DB, JSON.stringify({ ...stats, items }, null, 2));
+  const upsert = db.prepare(`
+    INSERT INTO candidates (id, source_id, source_name, title, url, summary, category, published_at, fetched_at, score, reason, status)
+    VALUES (@id, @sourceId, @sourceName, @title, @url, @summary, @category, @publishedAt, @fetchedAt, @score, @reason, @status)
+    ON CONFLICT(url) DO UPDATE SET
+      score=excluded.score, reason=excluded.reason, status=excluded.status,
+      summary=excluded.summary, fetched_at=excluded.fetched_at, published_at=excluded.published_at,
+      source_name=excluded.source_name, category=excluded.category
+  `);
+  const seenIds = new Set();
+  const tx = db.transaction(() => {
+    for (const it of items) {
+      seenIds.add(it.id);
+      upsert.run({
+        id: it.id,
+        sourceId: it.sourceId ?? null,
+        sourceName: it.sourceName ?? null,
+        title: it.title,
+        url: it.url,
+        summary: it.summary ?? '',
+        category: it.category ?? null,
+        publishedAt: it.publishedAt ?? null,
+        fetchedAt: it.fetchedAt,
+        score: typeof it.score === 'number' ? it.score : null,
+        reason: it.reason ?? null,
+        status: it.status ?? 'new',
+      });
+    }
+    // 清掉这一轮没出现、且还没处理的旧候选（超过 30 天）
+    db.prepare(`DELETE FROM candidates
+                WHERE status = 'new' AND score IS NULL
+                  AND fetched_at < datetime('now', '-30 day')`).run();
+    db.prepare("INSERT INTO settings (key, value) VALUES ('recall_stats', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value")
+      .run(JSON.stringify(stats));
+  });
+  tx();
 
   const bySource = {};
   for (const it of items) bySource[it.sourceName] = (bySource[it.sourceName] ?? 0) + 1;
@@ -263,7 +286,7 @@ async function main() {
     `入库 ${items.length} 条 | 挡掉：关键词 ${droppedBlocked}、过期 ${droppedOld}、重复 ${droppedDup}`
   );
   console.log('按来源：', bySource);
-  console.log(`\n写入 ${path.relative(process.cwd(), DB)}\n`);
+  console.log(`\n写入数据库（${items.length} 条）\n`);
 }
 
 main().catch((e) => {

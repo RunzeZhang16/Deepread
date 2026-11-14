@@ -8,3 +8,11 @@ docs
 .git
 *.zip
 data/articles.backup-*.json
+data/deepread.db
+data/*.db-wal
+data/*.db-shm
+deploy/
+docs/
+assets/
+.tcb-home/
+.npm-cache/
