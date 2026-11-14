@@ -31,3 +31,6 @@ assets/
 data/*.db
 data/*.db-wal
 data/*.db-shm
+
+# 部署密钥
+.ssh/
