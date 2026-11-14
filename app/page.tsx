@@ -102,9 +102,15 @@ export default function Home() {
     <div className={`layout ${chat ? 'with-chat' : ''}`}>
       <main className="wrap">
         <header className="masthead">
-          <h1>Deepread</h1>
+          <div className="brand">
+            <h1>Deepread</h1>
+            <span className="brand-sub">每日精选</span>
+          </div>
           <p className="dateline">{today()}</p>
         </header>
+        <div className="rule" aria-hidden="true">
+          <span className="rule-dot" />
+        </div>
 
         {!readonly && (
           <div className="edition-tools">
@@ -146,7 +152,7 @@ export default function Home() {
           <>
             <section className="picks">
               {picks.map((a) => (
-                <article className="pick" key={a.id}>
+                <article className="pick" key={a.id} data-cat={a.category ?? ''}>
                   <h2>
                     <a href={a.url} target="_blank" rel="noreferrer noopener">
                       {a.title}

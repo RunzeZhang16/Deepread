@@ -51,11 +51,44 @@ a { color: inherit; }
 /* ---------- 报头 ---------- */
 .masthead {
   display: flex;
-  align-items: baseline;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
-  padding: 44px 0 14px;
-  border-bottom: 1px solid var(--line);
+  padding: 40px 0 18px;
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding-left: 13px;
+  border-left: 3px solid var(--accent);
+}
+
+.brand-sub {
+  font-size: 11px;
+  letter-spacing: 0.32em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+/* 报头下的装饰线：双线 + 菱形 */
+.rule {
+  position: relative;
+  height: 7px;
+  margin-top: 0;
+  border-top: 1px solid #ded6c8;
+  border-bottom: 1px solid #ded6c8;
+}
+.rule-dot {
+  position: absolute;
+  left: 50%;
+  top: -4px;
+  width: 8px;
+  height: 8px;
+  background: var(--paper);
+  border: 1px solid #d0c6b4;
+  transform: translateX(-50%) rotate(45deg);
 }
 
 .masthead h1 {
@@ -95,7 +128,7 @@ a { color: inherit; }
   display: flex;
   gap: 18px;
   justify-content: flex-end;
-  padding: 10px 0 0;
+  padding: 14px 0 0;
 }
 .ghost {
   font: inherit;
@@ -127,8 +160,28 @@ a { color: inherit; }
   letter-spacing: -0.01em;
   color: var(--ink);
 }
-.pick h2 a { text-decoration: none; color: inherit; }
-.pick h2 a:hover { color: var(--accent); }
+.pick h2 a {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+  text-decoration-color: rgba(168, 68, 46, 0.28);
+  color: inherit;
+  transition: text-decoration-color 0.18s, color 0.18s;
+}
+.pick h2 a:hover {
+  color: var(--accent);
+  text-decoration-color: rgba(168, 68, 46, 0.75);
+}
+
+/* 按分类换下划线颜色 */
+.pick[data-cat='科技'] h2 a { text-decoration-color: rgba(47, 111, 159, 0.3); }
+.pick[data-cat='科技'] h2 a:hover { color: #2f6f9f; text-decoration-color: rgba(47, 111, 159, 0.8); }
+.pick[data-cat='社会'] h2 a { text-decoration-color: rgba(79, 125, 92, 0.3); }
+.pick[data-cat='社会'] h2 a:hover { color: #4f7d5c; text-decoration-color: rgba(79, 125, 92, 0.8); }
+.pick[data-cat='人文'] h2 a { text-decoration-color: rgba(122, 92, 158, 0.3); }
+.pick[data-cat='人文'] h2 a:hover { color: #7a5c9e; text-decoration-color: rgba(122, 92, 158, 0.8); }
+.pick[data-cat='科学'] h2 a { text-decoration-color: rgba(138, 100, 20, 0.3); }
+.pick[data-cat='科学'] h2 a:hover { color: #8a6414; text-decoration-color: rgba(138, 100, 20, 0.8); }
 
 .pick-summary {
   font-size: 15px;
@@ -185,6 +238,16 @@ a { color: inherit; }
 
 /* ---------- 速览 ---------- */
 .briefs { margin-top: 44px; }
+.briefs h2::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 9px;
+  background: var(--accent);
+  transform: translateY(-1px) rotate(45deg);
+  opacity: 0.8;
+}
 .briefs h2 {
   font-size: 11.5px;
   font-weight: 600;
