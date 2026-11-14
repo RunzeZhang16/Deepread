@@ -78,11 +78,12 @@ if (picked.length === 0) {
   console.log('\n⚠ 今天没有找到当日发布的条目');
 } else {
   const now = new Date().toISOString();
+  const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai' }).format(new Date());
   const ins = db.prepare(`
     INSERT INTO articles (id, url, title, account, site, status, word_count, excerpt, summary, questions,
-                          published_at, fetched_at, category, title_only, score, note)
+                          published_at, fetched_at, category, title_only, score, note, edition)
     VALUES (@id, @url, @title, @account, @site, 'meta_only', 0, '', NULL, NULL,
-            @publishedAt, @fetchedAt, @category, 1, @score, '仅标题')
+            @publishedAt, @fetchedAt, @category, 1, @score, '仅标题', @edition)
     ON CONFLICT(url) DO NOTHING
   `);
   const mark = db.prepare("UPDATE candidates SET status = 'promoted' WHERE id = ?");
@@ -101,6 +102,7 @@ if (picked.length === 0) {
         fetchedAt: now,
         category: c.category ?? null,
         score: c.score,
+        edition: today,
       });
       mark.run(c.id);
     }

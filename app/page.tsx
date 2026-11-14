@@ -155,7 +155,7 @@ export default function Home() {
 
                   {a.questions && a.questions.length > 0 ? (
                     <div className="pick-qs">
-                      {a.questions.map((q) => (
+                      {a.questions.slice(0, 2).map((q) => (
                         <button key={q} onClick={() => setPendingAsk({ article: a, question: q })}>
                           {q}
                         </button>

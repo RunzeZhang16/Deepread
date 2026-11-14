@@ -8,6 +8,16 @@ interface Msg {
   content: string;
 }
 
+function aid(): string {
+  if (typeof window === 'undefined') return '';
+  let v = localStorage.getItem('dr_aid');
+  if (!v) {
+    v = crypto.randomUUID();
+    localStorage.setItem('dr_aid', v);
+  }
+  return v;
+}
+
 export default function ChatPanel({
   article,
   initialQuestion,
@@ -21,6 +31,9 @@ export default function ChatPanel({
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [remaining, setRemaining] = useState<number | null>(null);
+  const [nextQuestion, setNextQuestion] = useState<string | null>(null);
+  const [blocked, setBlocked] = useState(false);
   const started = useRef(false);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -33,16 +46,23 @@ export default function ChatPanel({
     setInput('');
     setBusy(true);
     setError('');
+    setNextQuestion(null);
 
     try {
       const res = await fetch(`/api/articles/${article.id}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: next }),
+        body: JSON.stringify({ messages: next, aid: aid() }),
       });
       const data = await res.json();
       if (res.ok && data.ok) {
         setMessages([...next, { role: 'assistant', content: data.answer }]);
+        setRemaining(typeof data.remaining === 'number' ? data.remaining : null);
+        setNextQuestion(data.next ?? null);
+      } else if (data.code === 'limit') {
+        setBlocked(true);
+        setRemaining(0);
+        setError(data.message ?? '今天的对话次数用完了');
       } else {
         setError(data.message ?? '对话失败');
       }
@@ -87,7 +107,15 @@ export default function ChatPanel({
         ))}
 
         {busy && <div className="bubble assistant thinking">思考中…</div>}
-        {error && <div className="chat-error">{error}</div>}
+
+        {nextQuestion && !busy && !blocked && (
+          <button className="next-q" onClick={() => send(nextQuestion)}>
+            <span>接着问</span>
+            {nextQuestion}
+          </button>
+        )}
+
+        {error && <div className={`chat-error ${blocked ? 'blocked' : ''}`}>{error}</div>}
         <div ref={endRef} />
       </div>
 
@@ -101,16 +129,18 @@ export default function ChatPanel({
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="继续追问…"
-          disabled={busy}
+          placeholder={blocked ? '今天的次数用完了，明天再来' : '继续追问…'}
+          disabled={busy || blocked}
         />
-        <button type="submit" disabled={busy || !input.trim()}>
+        <button type="submit" disabled={busy || blocked || !input.trim()}>
           问
         </button>
       </form>
 
       <div className="chat-foot">
-        回答只基于这篇文章，可能不完整。原文更准，记得回去核对。
+        回答只基于这篇文章，可能不完整。
+        {remaining !== null && !blocked && ` · 今天还可以问 ${remaining} 轮`}
+        {blocked && ' · 更多轮次开发中，敬请期待'}
       </div>
     </aside>
   );
