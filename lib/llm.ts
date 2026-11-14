@@ -7,6 +7,7 @@ import { generateBrief as gen, hasLLM as has } from './llm.mjs';
 
 export interface Brief {
   summary: string;
+  hook: string;
   items: { q: string; a: string; next: string }[];
 }
 

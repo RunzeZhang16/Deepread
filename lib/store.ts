@@ -32,6 +32,7 @@ export interface Article {
   summary?: string;
   questions?: string[];
   answers?: { q: string; a: string; next: string }[];
+  hook?: string | null;
   edition?: string;
   enrichedAt?: string;
   enrichError?: string;
@@ -64,6 +65,7 @@ interface ArticleRow {
   summary: string | null;
   questions: string | null;
   answers: string | null;
+  hook: string | null;
   published_at: string | null;
   fetched_at: string | null;
   category: string | null;
@@ -94,6 +96,7 @@ function toArticle(row: ArticleRow): Article {
     summary: row.summary ?? undefined,
     questions: parseQuestions(row.questions),
     answers: parseAnswers(row.answers),
+    hook: row.hook ?? null,
     enrichError: row.enrich_error ?? undefined,
   };
 }
@@ -122,7 +125,7 @@ function insertArticle(rec: Article) {
       `INSERT INTO articles (id, url, title, account, site, status, word_count, excerpt, summary, questions,
                              published_at, fetched_at, category, title_only, score, note, error, enrich_error)
        VALUES (@id, @url, @title, @account, @site, @status, @wordCount, @excerpt, @summary, @questions,
-               @publishedAt, @fetchedAt, @category, @titleOnly, @score, @note, @error, @enrichError, @edition, @answers)
+               @publishedAt, @fetchedAt, @category, @titleOnly, @score, @note, @error, @enrichError, @edition, @answers, @hook)
        ON CONFLICT(url) DO UPDATE SET
          title=excluded.title, account=excluded.account, summary=excluded.summary,
          questions=excluded.questions, word_count=excluded.word_count, title_only=excluded.title_only,
@@ -140,6 +143,7 @@ function insertArticle(rec: Article) {
       summary: rec.summary ?? null,
       questions: rec.questions ? JSON.stringify(rec.questions) : null,
       answers: rec.answers ? JSON.stringify(rec.answers) : null,
+      hook: rec.hook ?? null,
       publishedAt: rec.publishedAt ?? null,
       fetchedAt: rec.fetchedAt ?? new Date().toISOString(),
       category: rec.category ?? null,
@@ -199,6 +203,7 @@ async function buildRecord(
     record: {
       ...record,
       summary: result.brief.summary,
+      hook: result.brief.hook,
       questions: result.brief.items.map((i) => i.q),
       answers: result.brief.items,
       enrichedAt: new Date().toISOString(),
@@ -280,12 +285,13 @@ export async function enrichArticle(
 
   getDb()
     .prepare(
-      `UPDATE articles SET summary = ?, questions = ?, answers = ?, title_only = 0, enrich_error = NULL WHERE id = ?`
+      `UPDATE articles SET summary = ?, questions = ?, answers = ?, hook = ?, title_only = 0, enrich_error = NULL WHERE id = ?`
     )
     .run(
       result.brief.summary,
       JSON.stringify(result.brief.items.map((i) => i.q)),
       JSON.stringify(result.brief.items),
+      result.brief.hook,
       id
     );
 

@@ -75,9 +75,9 @@ for (const c of pool) {
 console.log(`\n今日出刊（${today}）：候选 ${pool.length} 条，选出 ${picked.length} 篇\n`);
 
 const ins = db.prepare(`
-  INSERT INTO articles (id, url, title, account, site, status, word_count, excerpt, summary, questions, answers,
+  INSERT INTO articles (id, url, title, account, site, status, word_count, excerpt, summary, questions, answers, hook,
                         published_at, fetched_at, category, title_only, score, note, error, enrich_error, edition)
-  VALUES (@id, @url, @title, @account, @site, @status, @wordCount, @excerpt, @summary, @questions, @answers,
+  VALUES (@id, @url, @title, @account, @site, @status, @wordCount, @excerpt, @summary, @questions, @answers, @hook,
           @publishedAt, @fetchedAt, @category, 0, @score, NULL, NULL, @enrichError, @edition)
   ON CONFLICT(url) DO UPDATE SET
     title=excluded.title, account=excluded.account, summary=excluded.summary,
@@ -135,6 +135,7 @@ for (let idx = 0; idx < list.length; idx++) {
       summary,
       questions: questions.length ? JSON.stringify(questions) : null,
       answers: items.length ? JSON.stringify(items) : null,
+      hook: brief.brief.hook ?? null,
       publishedAt: r.publishedAt ?? null,
       fetchedAt: new Date().toISOString(),
       category: c.category ?? null,

@@ -71,33 +71,59 @@ export async function buildWechatArticle(): Promise<{ title: string; html: strin
   const intro = await buildIntro(picks, day);
   const title = `今天值得读的 ${picks.length} 篇 · ${fmtCN(day)}`;
 
-  const card = (a: Article, idx: number) => `
-  <section style="margin:0 0 30px;">
-    <p style="margin:0 0 8px;font-size:12px;color:${ACCENT};letter-spacing:0.12em;">0${idx + 1}</p>
-    <h2 style="margin:0 0 10px;font-size:17px;line-height:1.6;color:${INK};font-weight:600;">
-      ${esc(a.title)}
-    </h2>
-    ${a.summary ? `<p style="margin:0 0 10px;font-size:14px;line-height:1.9;color:#44403c;">${esc(a.summary)}</p>` : ''}
+  // 主推 1 篇 + 其余只给标题和钩子，目的是让人点「阅读原文」
+  const lead = picks[0];
+  const rest = picks.slice(1);
+
+  const leadBlock = lead
+    ? `
+  <section style="margin:0 0 30px;padding:0 0 26px;border-bottom:1px solid ${LINE};">
+    <p style="margin:0 0 10px;font-size:12px;color:${ACCENT};letter-spacing:0.14em;">今 日 主 推</p>
+    <h2 style="margin:0 0 10px;font-size:18px;line-height:1.6;color:${INK};font-weight:600;">${esc(lead.title)}</h2>
     ${
-      a.questions?.length
-        ? `<p style="margin:0 0 8px;font-size:13px;line-height:1.8;color:${ACCENT};">${a.questions
+      lead.hook
+        ? `<p style="margin:0 0 14px;font-size:15px;line-height:1.9;color:#44403c;">${esc(lead.hook)}</p>`
+        : ''
+    }
+    ${
+      lead.questions?.length
+        ? `<p style="margin:0 0 12px;font-size:13px;line-height:1.9;color:${ACCENT};">${lead.questions
             .slice(0, 2)
             .map((q) => `· ${esc(q)}`)
             .join('<br/>')}</p>`
         : ''
     }
-    <p style="margin:0;font-size:12px;color:${MUTED};">${esc(a.account ?? '')}${a.wordCount ? ` · ${a.wordCount} 字` : ''}</p>
-  </section>`;
+    <p style="margin:0;font-size:12px;color:${MUTED};">${esc(lead.account ?? '')}${lead.wordCount ? ` · ${lead.wordCount} 字` : ''}</p>
+  </section>`
+    : '';
+
+  const restBlock = rest.length
+    ? `
+  <section style="margin:26px 0 0;">
+    <p style="margin:0 0 16px;font-size:12px;color:${MUTED};letter-spacing:0.14em;">今 天 还 有 ${rest.length} 篇</p>
+    ${rest
+      .map(
+        (a, i) => `<section style="margin:0 0 20px;">
+      <p style="margin:0 0 4px;font-size:15px;line-height:1.7;color:${INK};font-weight:600;">
+        <span style="color:${ACCENT};font-size:12px;margin-right:6px;">0${i + 2}</span>${esc(a.title)}
+      </p>
+      ${a.hook ? `<p style="margin:0 0 2px;font-size:13.5px;line-height:1.8;color:#6b6257;">${esc(a.hook)}</p>` : ''}
+      <p style="margin:0;font-size:11.5px;color:${MUTED};">${esc(a.account ?? '')}</p>
+    </section>`
+      )
+      .join('')}
+  </section>`
+    : '';
 
   const briefBlock = briefs.length
     ? `
-  <section style="margin:36px 0 0;padding-top:18px;border-top:1px solid ${LINE};">
+  <section style="margin:30px 0 0;padding-top:18px;border-top:1px solid ${LINE};">
     <p style="margin:0 0 12px;font-size:12px;color:${MUTED};letter-spacing:0.2em;">今 日 速 览</p>
     ${briefs
+      .slice(0, 6)
       .map(
         (b) => `<p style="margin:0 0 9px;font-size:13px;line-height:1.7;color:#44403c;">
       <span style="color:${ACCENT};">·</span> ${esc(b.title)}
-      <span style="color:${MUTED};font-size:11px;">　${esc(b.account ?? '')}</span>
     </p>`
       )
       .join('')}
@@ -105,14 +131,20 @@ export async function buildWechatArticle(): Promise<{ title: string; html: strin
     : '';
 
   const html = `<section style="max-width:677px;margin:0 auto;padding:8px 2px;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;color:${INK};">
-  <p style="margin:0 0 22px;font-size:14px;line-height:1.9;color:#44403c;">${esc(intro)}</p>
-  ${picks.map(card).join('')}
+  <p style="margin:0 0 24px;font-size:14px;line-height:1.9;color:#44403c;">${esc(intro)}</p>
+  ${leadBlock}
+  <section style="margin:0 0 26px;padding:16px 18px;background:#faf7f2;border-left:3px solid ${ACCENT};">
+    <p style="margin:0;font-size:13.5px;line-height:1.8;color:#44403c;">
+      这 ${picks.length} 篇的全文，以及每篇后面都能点开问题、和 AI 接着聊——都在「阅读原文」。
+    </p>
+  </section>
+  ${restBlock}
   ${briefBlock}
   <section style="margin:34px 0 0;padding-top:16px;border-top:1px solid ${LINE};">
     <p style="margin:0 0 6px;font-size:13px;line-height:1.8;color:#44403c;">
       每篇都能点开问题，和 AI 聊这篇；每天下午 5 点更新。
     </p>
-    <p style="margin:0;font-size:13px;color:${ACCENT};">完整版和对话在「阅读原文」里 →</p>
+    <p style="margin:0;font-size:13.5px;color:${ACCENT};">点「阅读原文」，读今天的 ${picks.length} 篇 →</p>
   </section>
 </section>`;
 

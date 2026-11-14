@@ -12,14 +12,14 @@ const db = getDb();
 const rows = db
   .prepare(
     `SELECT id, url, title FROM articles
-     WHERE edition = ? AND title_only = 0 AND (answers IS NULL OR answers = '')`
+     WHERE edition = ? AND title_only = 0 AND (answers IS NULL OR answers = '' OR hook IS NULL)`
   )
   .all(today);
 
-console.log(`\n需要补答案：${rows.length} 篇（${today}）\n`);
+console.log(`\n需要补内容：${rows.length} 篇（${today}）\n`);
 
 const upd = db.prepare(
-  `UPDATE articles SET summary = ?, questions = ?, answers = ?, word_count = ?, enrich_error = NULL WHERE id = ?`
+  `UPDATE articles SET summary = ?, questions = ?, answers = ?, hook = ?, word_count = ?, enrich_error = NULL WHERE id = ?`
 );
 
 for (const r of rows) {
@@ -38,6 +38,7 @@ for (const r of rows) {
       brief.brief.summary,
       JSON.stringify(brief.brief.items.map((i) => i.q)),
       JSON.stringify(brief.brief.items),
+      brief.brief.hook ?? null,
       a.wordCount ?? 0,
       r.id
     );
@@ -48,6 +49,6 @@ for (const r of rows) {
 }
 
 const left = db
-  .prepare(`SELECT COUNT(*) n FROM articles WHERE edition = ? AND title_only = 0 AND answers IS NULL`)
+  .prepare(`SELECT COUNT(*) n FROM articles WHERE edition = ? AND title_only = 0 AND (answers IS NULL OR hook IS NULL)`)
   .get(today).n;
 console.log(`\n完成，剩余未补 ${left} 篇\n`);
