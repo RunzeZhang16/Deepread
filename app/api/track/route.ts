@@ -10,6 +10,7 @@ const ALLOWED = new Set([
   'question_click',
   'next_click',
   'article_click',
+  'brief_click',
   'subscribe_click',
 ]);
 

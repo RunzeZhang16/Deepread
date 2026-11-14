@@ -104,7 +104,7 @@ export default function Home() {
         <header className="masthead">
           <div className="brand">
             <h1>Deepread</h1>
-            <span className="brand-sub">每日精选</span>
+            <span className="brand-sub">精选优质媒体文章 · 个人博客</span>
           </div>
           <p className="dateline">{today()}</p>
         </header>
@@ -154,7 +154,14 @@ export default function Home() {
               {picks.map((a) => (
                 <article className="pick" key={a.id} data-cat={a.category ?? ''}>
                   <h2>
-                    <a href={a.url} target="_blank" rel="noreferrer noopener">
+                    <a
+                      href={a.url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      onClick={() =>
+                        track('article_click', { id: a.id, cat: a.category ?? '', score: a.score ?? null })
+                      }
+                    >
                       {a.title}
                     </a>
                   </h2>
@@ -223,7 +230,12 @@ export default function Home() {
                 <ul>
                   {briefs.map((b) => (
                     <li key={b.id}>
-                      <a href={b.url} target="_blank" rel="noreferrer noopener">
+                      <a
+                        href={b.url}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        onClick={() => track('brief_click', { id: b.id, source: b.account ?? '' })}
+                      >
                         {b.title}
                       </a>
                       {b.account && <span>{b.account}</span>}
