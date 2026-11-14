@@ -52,7 +52,8 @@ CREATE TABLE IF NOT EXISTS articles (
   note          TEXT,
   error         TEXT,
   enrich_error  TEXT,
-  edition       TEXT
+  edition       TEXT,
+  answers       TEXT   -- 预生成的问题答案 JSON
 );
 CREATE INDEX IF NOT EXISTS idx_art_fetched ON articles(fetched_at DESC);
 
@@ -111,4 +112,13 @@ CREATE TABLE IF NOT EXISTS job_runs (
 CREATE TABLE IF NOT EXISTS settings (
   key   TEXT PRIMARY KEY,
   value TEXT
+);
+
+-- 每篇文章的对话额度（按人按天）
+CREATE TABLE IF NOT EXISTS chat_quota (
+  aid        TEXT NOT NULL,
+  article_id TEXT NOT NULL,
+  day        TEXT NOT NULL,
+  count      INTEGER DEFAULT 0,
+  PRIMARY KEY (aid, article_id, day)
 );

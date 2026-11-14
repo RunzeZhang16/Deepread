@@ -75,9 +75,9 @@ for (const c of pool) {
 console.log(`\n今日出刊（${today}）：候选 ${pool.length} 条，选出 ${picked.length} 篇\n`);
 
 const ins = db.prepare(`
-  INSERT INTO articles (id, url, title, account, site, status, word_count, excerpt, summary, questions,
+  INSERT INTO articles (id, url, title, account, site, status, word_count, excerpt, summary, questions, answers,
                         published_at, fetched_at, category, title_only, score, note, error, enrich_error, edition)
-  VALUES (@id, @url, @title, @account, @site, @status, @wordCount, @excerpt, @summary, @questions,
+  VALUES (@id, @url, @title, @account, @site, @status, @wordCount, @excerpt, @summary, @questions, @answers,
           @publishedAt, @fetchedAt, @category, 0, @score, NULL, NULL, @enrichError, @edition)
   ON CONFLICT(url) DO UPDATE SET
     title=excluded.title, account=excluded.account, summary=excluded.summary,
@@ -119,7 +119,8 @@ for (let idx = 0; idx < list.length; idx++) {
       continue;
     }
 
-    const questions = brief.brief.questions;
+    const items = brief.brief.items;
+    const questions = items.map((i) => i.q);
     const summary = brief.brief.summary;
 
     ins.run({
@@ -133,6 +134,7 @@ for (let idx = 0; idx < list.length; idx++) {
       excerpt: r.excerpt ?? '',
       summary,
       questions: questions.length ? JSON.stringify(questions) : null,
+      answers: items.length ? JSON.stringify(items) : null,
       publishedAt: r.publishedAt ?? null,
       fetchedAt: new Date().toISOString(),
       category: c.category ?? null,

@@ -1,35 +1,33 @@
 import { getDb } from './db';
 
-export const DAILY_LIMIT = Number(process.env.CHAT_DAILY_LIMIT ?? 3);
+/** 每篇文章的对话轮数上限 */
+export const PER_ARTICLE_LIMIT = Number(process.env.CHAT_LIMIT_PER_ARTICLE ?? 3);
 
 export function dayKey(): string {
   return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai' }).format(new Date());
 }
 
-/** 今天已经用了几轮 */
-export function usedToday(aid: string): number {
+export function usedFor(aid: string, articleId: string): number {
   const row = getDb()
-    .prepare('SELECT count FROM chat_usage WHERE aid = ? AND day = ?')
-    .get(aid, dayKey()) as { count: number } | undefined;
+    .prepare('SELECT count FROM chat_quota WHERE aid = ? AND article_id = ? AND day = ?')
+    .get(aid, articleId, dayKey()) as { count: number } | undefined;
   return row?.count ?? 0;
 }
 
-/** 用掉一轮，返回用完之后的数量 */
-export function consume(aid: string): number {
+export function consumeFor(aid: string, articleId: string): number {
   const db = getDb();
   const day = dayKey();
   db.prepare(
-    `INSERT INTO chat_usage (aid, day, count) VALUES (?, ?, 1)
-     ON CONFLICT(aid, day) DO UPDATE SET count = count + 1`
-  ).run(aid, day);
-  return usedToday(aid);
+    `INSERT INTO chat_quota (aid, article_id, day, count) VALUES (?, ?, ?, 1)
+     ON CONFLICT(aid, article_id, day) DO UPDATE SET count = count + 1`
+  ).run(aid, articleId, day);
+  return usedFor(aid, articleId);
 }
 
-export function remaining(aid: string): number {
-  return Math.max(0, DAILY_LIMIT - usedToday(aid));
+export function remainingFor(aid: string, articleId: string): number {
+  return Math.max(0, PER_ARTICLE_LIMIT - usedFor(aid, articleId));
 }
 
-/** 埋点 */
 export function logEvent(name: string, props: Record<string, unknown> = {}, aid = '', path = '') {
   try {
     getDb()

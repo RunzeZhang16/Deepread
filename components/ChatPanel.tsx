@@ -97,7 +97,7 @@ export default function ChatPanel({
   }, [messages, busy]);
 
   return (
-    <aside className="chat" aria-label="和 DeepSeek 对话">
+    <aside className="chat-inline" aria-label="和 DeepSeek 对话">
       <div className="chat-head">
         <span className="chat-title">和 DeepSeek 聊这篇</span>
         <button className="chat-close" onClick={onClose} title="收起">

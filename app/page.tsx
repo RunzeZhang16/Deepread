@@ -99,7 +99,7 @@ export default function Home() {
   }
 
   return (
-    <div className={`layout ${chat ? 'with-chat' : ''}`}>
+    <div className="layout">
       <main className="wrap">
         <header className="masthead">
           <div className="brand">
@@ -220,6 +220,10 @@ export default function Home() {
                     {a.account && <span>{a.account}</span>}
                     {a.wordCount > 0 && <span>{a.wordCount} 字</span>}
                   </p>
+
+                  {chat?.article.id === a.id && (
+                    <ChatPanel article={a} initialQuestion={chat.question} onClose={() => setChat(null)} />
+                  )}
                 </article>
               ))}
             </section>
@@ -257,10 +261,6 @@ export default function Home() {
 
         <footer className="colophon">Deepread · 每天读点好的</footer>
       </main>
-
-      {chat && (
-        <ChatPanel article={chat.article} initialQuestion={chat.question} onClose={() => setChat(null)} />
-      )}
     </div>
   );
 }

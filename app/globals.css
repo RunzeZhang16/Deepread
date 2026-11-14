@@ -609,7 +609,7 @@ a { color: inherit; }
 /* ---------- 手机 ---------- */
 @media (max-width: 1180px) {
   .layout { display: block; }
-  .chat {
+  .chat-legacy {
     position: fixed; left: 0; right: 0; bottom: 0; width: auto; height: auto;
     max-height: 58vh; border-radius: 16px 16px 0 0; border-bottom: 0; z-index: 50;
   }
@@ -629,4 +629,79 @@ a { color: inherit; }
   .pick { padding: 28px 0 24px; }
   .pick h2 { font-size: 19px; }
   .pick-summary { font-size: 14.5px; }
+}
+
+/* ---------- 内嵌对话 ---------- */
+.chat-inline {
+  margin: 22px 0 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+}
+.chat-inline .chat-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+}
+.chat-inline .chat-title {
+  font-family: Georgia, 'Songti SC', 'STSong', serif;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+}
+.chat-inline .chat-close {
+  font: inherit;
+  font-size: 11px;
+  border: 0;
+  background: none;
+  color: var(--faint);
+  cursor: pointer;
+}
+.chat-inline .chat-article { display: none; }
+.chat-inline .chat-body {
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+.chat-inline .chat-input {
+  display: flex;
+  gap: 8px;
+  padding: 11px 13px;
+  border-top: 1px solid var(--line);
+}
+.chat-inline .chat-input input {
+  flex: 1;
+  font: inherit;
+  font-size: 13px;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  outline: none;
+  min-width: 0;
+  background: var(--paper);
+}
+.chat-inline .chat-input input:focus { border-color: var(--accent); background: #fff; }
+.chat-inline .chat-input button {
+  font: inherit;
+  font-size: 13px;
+  padding: 0 15px;
+  border-radius: 8px;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: #fff;
+  cursor: pointer;
+}
+.chat-inline .chat-input button:disabled { opacity: 0.35; cursor: default; }
+.chat-inline .chat-foot {
+  font-size: 10.5px;
+  color: var(--faint);
+  padding: 0 14px 11px;
+  line-height: 1.55;
 }

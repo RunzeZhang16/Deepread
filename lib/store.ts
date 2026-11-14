@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import { fetchArticle, toStored } from './extract.mjs';
 import { generateBrief, hasLLM } from './llm';
 import { cleanTitle } from './title.mjs';
-import { getDb, parseQuestions } from './db';
+import { getDb, parseQuestions, parseAnswers } from './db';
 
 export type Status = 'full' | 'meta_only' | 'failed';
 
@@ -31,6 +31,7 @@ export interface Article {
   titleOnly?: boolean;
   summary?: string;
   questions?: string[];
+  answers?: { q: string; a: string; next: string }[];
   edition?: string;
   enrichedAt?: string;
   enrichError?: string;
@@ -62,6 +63,7 @@ interface ArticleRow {
   excerpt: string | null;
   summary: string | null;
   questions: string | null;
+  answers: string | null;
   published_at: string | null;
   fetched_at: string | null;
   category: string | null;
@@ -91,6 +93,7 @@ function toArticle(row: ArticleRow): Article {
     titleOnly: row.title_only ? true : undefined,
     summary: row.summary ?? undefined,
     questions: parseQuestions(row.questions),
+    answers: parseAnswers(row.answers),
     enrichError: row.enrich_error ?? undefined,
   };
 }
@@ -119,7 +122,7 @@ function insertArticle(rec: Article) {
       `INSERT INTO articles (id, url, title, account, site, status, word_count, excerpt, summary, questions,
                              published_at, fetched_at, category, title_only, score, note, error, enrich_error)
        VALUES (@id, @url, @title, @account, @site, @status, @wordCount, @excerpt, @summary, @questions,
-               @publishedAt, @fetchedAt, @category, @titleOnly, @score, @note, @error, @enrichError, @edition)
+               @publishedAt, @fetchedAt, @category, @titleOnly, @score, @note, @error, @enrichError, @edition, @answers)
        ON CONFLICT(url) DO UPDATE SET
          title=excluded.title, account=excluded.account, summary=excluded.summary,
          questions=excluded.questions, word_count=excluded.word_count, title_only=excluded.title_only,
@@ -136,6 +139,7 @@ function insertArticle(rec: Article) {
       excerpt: rec.excerpt ?? '',
       summary: rec.summary ?? null,
       questions: rec.questions ? JSON.stringify(rec.questions) : null,
+      answers: rec.answers ? JSON.stringify(rec.answers) : null,
       publishedAt: rec.publishedAt ?? null,
       fetchedAt: rec.fetchedAt ?? new Date().toISOString(),
       category: rec.category ?? null,
@@ -195,7 +199,8 @@ async function buildRecord(
     record: {
       ...record,
       summary: result.brief.summary,
-      questions: result.brief.questions,
+      questions: result.brief.items.map((i) => i.q),
+      answers: result.brief.items,
       enrichedAt: new Date().toISOString(),
     },
   };
@@ -275,9 +280,14 @@ export async function enrichArticle(
 
   getDb()
     .prepare(
-      `UPDATE articles SET summary = ?, questions = ?, title_only = 0, enrich_error = NULL WHERE id = ?`
+      `UPDATE articles SET summary = ?, questions = ?, answers = ?, title_only = 0, enrich_error = NULL WHERE id = ?`
     )
-    .run(result.brief.summary, JSON.stringify(result.brief.questions), id);
+    .run(
+      result.brief.summary,
+      JSON.stringify(result.brief.items.map((i) => i.q)),
+      JSON.stringify(result.brief.items),
+      id
+    );
 
   return { ok: true, article: findArticle(id) };
 }
