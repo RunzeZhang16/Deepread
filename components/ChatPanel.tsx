@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { Article } from '@/lib/store';
+import { track } from '@/lib/track';
 
 interface Msg {
   role: 'user' | 'assistant';
@@ -76,6 +77,7 @@ export default function ChatPanel({
   useEffect(() => {
     if (started.current) return;
     started.current = true;
+    track('chat_open', { id: article.id });
     if (initialQuestion) send(initialQuestion);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -109,7 +111,13 @@ export default function ChatPanel({
         {busy && <div className="bubble assistant thinking">思考中…</div>}
 
         {nextQuestion && !busy && !blocked && (
-          <button className="next-q" onClick={() => send(nextQuestion)}>
+          <button
+            className="next-q"
+            onClick={() => {
+              track('next_click', { id: article.id, q: nextQuestion });
+              send(nextQuestion);
+            }}
+          >
             <span>接着问</span>
             {nextQuestion}
           </button>

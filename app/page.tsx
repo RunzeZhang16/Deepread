@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { Article } from '@/lib/store';
 import ChatPanel from '@/components/ChatPanel';
+import { track } from '@/lib/track';
 
 type Hint = { kind: 'ok' | 'err' | 'info'; text: string } | null;
 type Ask = { article: Article; question: string } | null;
@@ -40,6 +41,7 @@ export default function Home() {
 
   useEffect(() => {
     load();
+    track('page_view');
   }, [load]);
 
   const { picks, briefs } = useMemo(() => {
@@ -156,7 +158,13 @@ export default function Home() {
                   {a.questions && a.questions.length > 0 ? (
                     <div className="pick-qs">
                       {a.questions.slice(0, 2).map((q) => (
-                        <button key={q} onClick={() => setPendingAsk({ article: a, question: q })}>
+                        <button
+                          key={q}
+                          onClick={() => {
+                            track('question_click', { id: a.id, q });
+                            setPendingAsk({ article: a, question: q });
+                          }}
+                        >
                           {q}
                         </button>
                       ))}

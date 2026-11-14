@@ -36,7 +36,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       {
         ok: false,
         code: 'limit',
-        message: `今天的 ${DAILY_LIMIT} 轮对话已经用完啦，明天再来。更多轮次的功能正在开发中，敬请期待。`,
+        message: '感谢您的好奇心，但是今天的对话额度已经用完啦，更多轮次的功能正在开发中，敬请期待',
         remaining: 0,
       },
       { status: 429 }

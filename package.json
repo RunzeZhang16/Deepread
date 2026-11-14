@@ -15,7 +15,8 @@
     "briefs": "NODE_EXTRA_CA_CERTS=${NODE_EXTRA_CA_CERTS:-/etc/ssl/cert.pem} node scripts/fill-briefs.mjs",
     "publish": "NODE_EXTRA_CA_CERTS=${NODE_EXTRA_CA_CERTS:-/etc/ssl/cert.pem} node scripts/publish.mjs",
     "migrate": "node scripts/migrate.mjs",
-    "edition": "NODE_EXTRA_CA_CERTS=${NODE_EXTRA_CA_CERTS:-/etc/ssl/cert.pem} node --env-file-if-exists=.env.local scripts/build-edition.mjs"
+    "edition": "NODE_EXTRA_CA_CERTS=${NODE_EXTRA_CA_CERTS:-/etc/ssl/cert.pem} node --env-file-if-exists=.env.local scripts/build-edition.mjs",
+    "stats": "NODE_EXTRA_CA_CERTS=${NODE_EXTRA_CA_CERTS:-/etc/ssl/cert.pem} node scripts/stats.mjs"
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
