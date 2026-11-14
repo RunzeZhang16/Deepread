@@ -40,6 +40,22 @@ export interface ChatMessage {
   content: string;
 }
 
+/** 解析模型输出：{answer, next}，解析失败就把原文当答案 */
+function parseAnswer(raw: string): { ok: true; answer: string; next: string | null } {
+  let answer = raw;
+  let next: string | null = null;
+  try {
+    const text = raw.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+    const obj = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+    answer = String(obj.answer ?? '').trim() || raw;
+    const n = String(obj.next ?? '').trim();
+    if (n && n.length >= 4 && n.length <= 40 && /[？?]$/.test(n)) next = n;
+  } catch {
+    /* 不是 JSON 就把原文当答案 */
+  }
+  return { ok: true, answer, next };
+}
+
 export async function askAboutArticle(input: {
   url: string;
   title: string;
@@ -78,11 +94,12 @@ ${article.body.slice(0, 9000)}`;
       body: JSON.stringify({
         model: MODEL,
         temperature: 0.5,
-        max_tokens: 3000,
+        max_tokens: 6000,
+        effort: 'low',
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: system },
-          ...input.messages.slice(-8).map((m) => ({ role: m.role, content: m.content.slice(0, 800) })),
+          ...input.messages.slice(-6).map((m) => ({ role: m.role, content: m.content.slice(0, 600) })),
         ],
       }),
       signal: AbortSignal.timeout(60_000),
@@ -95,21 +112,35 @@ ${article.body.slice(0, 9000)}`;
 
     const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
     const raw = json.choices?.[0]?.message?.content?.trim() ?? '';
-    if (!raw) return { ok: false, error: '模型没有返回内容' };
+    if (!raw) {
+      // 推理模型有时把预算花在思考上，重试一次：不带上文，只留最后一个问题
+      const lastUser = [...input.messages].reverse().find((m) => m.role === 'user');
+      const retry = await fetch(`${BASE}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
+        body: JSON.stringify({
+          model: MODEL,
+          temperature: 0.5,
+          max_tokens: 9000,
+          effort: 'low',
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: lastUser?.content?.slice(0, 600) ?? '' },
+          ],
+        }),
+        signal: AbortSignal.timeout(60_000),
+      });
 
-    let answer = raw;
-    let next: string | null = null;
-    try {
-      const text = raw.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
-      const obj = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
-      answer = String(obj.answer ?? '').trim() || raw;
-      const n = String(obj.next ?? '').trim();
-      if (n && n.length >= 4 && n.length <= 40 && /[？?]$/.test(n)) next = n;
-    } catch {
-      /* 不是 JSON 就把原文当答案 */
+      if (retry.ok) {
+        const j2 = (await retry.json()) as { choices?: { message?: { content?: string } }[] };
+        const raw2 = j2.choices?.[0]?.message?.content?.trim() ?? '';
+        if (raw2) return parseAnswer(raw2);
+      }
+      return { ok: false, error: '这次没答上来，再点一次试试' };
     }
 
-    return { ok: true, answer, next };
+    return parseAnswer(raw);
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : '对话失败' };
   }
