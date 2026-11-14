@@ -31,8 +31,14 @@ export interface Article {
   titleOnly?: boolean;
   summary?: string;
   questions?: string[];
+  edition?: string;
   enrichedAt?: string;
   enrichError?: string;
+}
+
+/** 北京时间的今天 */
+export function todayEdition(): string {
+  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai' }).format(new Date());
 }
 
 /** 由 URL 派生稳定 id */
@@ -90,9 +96,15 @@ function toArticle(row: ArticleRow): Article {
 }
 
 export function listArticles(): Article[] {
-  const rows = getDb()
-    .prepare('SELECT * FROM articles ORDER BY fetched_at DESC')
-    .all() as ArticleRow[];
+  const db = getDb();
+  // 只展示最新一期
+  const latest = db
+    .prepare("SELECT MAX(edition) e FROM articles WHERE edition IS NOT NULL AND edition != '0000-00-00'")
+    .get() as { e: string | null };
+  const edition = latest?.e ?? '';
+  const rows = db
+    .prepare('SELECT * FROM articles WHERE edition = ? ORDER BY score DESC NULLS LAST')
+    .all(edition) as ArticleRow[];
   return rows.map(toArticle);
 }
 
@@ -107,7 +119,7 @@ function insertArticle(rec: Article) {
       `INSERT INTO articles (id, url, title, account, site, status, word_count, excerpt, summary, questions,
                              published_at, fetched_at, category, title_only, score, note, error, enrich_error)
        VALUES (@id, @url, @title, @account, @site, @status, @wordCount, @excerpt, @summary, @questions,
-               @publishedAt, @fetchedAt, @category, @titleOnly, @score, @note, @error, @enrichError)
+               @publishedAt, @fetchedAt, @category, @titleOnly, @score, @note, @error, @enrichError, @edition)
        ON CONFLICT(url) DO UPDATE SET
          title=excluded.title, account=excluded.account, summary=excluded.summary,
          questions=excluded.questions, word_count=excluded.word_count, title_only=excluded.title_only,
@@ -132,6 +144,7 @@ function insertArticle(rec: Article) {
       note: rec.note ?? null,
       error: rec.error ?? null,
       enrichError: rec.enrichError ?? null,
+      edition: rec.edition ?? todayEdition(),
     });
 }
 
@@ -227,7 +240,7 @@ export async function addArticle(
     };
   }
 
-  const rec = { ...built.record, id: idFor(url), category: null } as Article;
+  const rec = { ...built.record, id: idFor(url), category: null, edition: todayEdition() } as Article;
   insertArticle(rec);
   return { ok: true, article: findArticle(rec.id), enrichError: built.error };
 }

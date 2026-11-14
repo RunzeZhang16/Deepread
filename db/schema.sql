@@ -51,7 +51,8 @@ CREATE TABLE IF NOT EXISTS articles (
   score         INTEGER,
   note          TEXT,
   error         TEXT,
-  enrich_error  TEXT
+  enrich_error  TEXT,
+  edition       TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_art_fetched ON articles(fetched_at DESC);
 
