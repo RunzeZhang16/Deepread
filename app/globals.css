@@ -705,3 +705,13 @@ a { color: inherit; }
   padding: 0 14px 11px;
   line-height: 1.55;
 }
+
+/* ---------- 公众号预览 ---------- */
+.wechat-preview {
+  margin-top: 24px;
+  padding: 26px 24px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.wechat-preview h2 { font-weight: 600; }
