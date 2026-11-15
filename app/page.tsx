@@ -62,13 +62,11 @@ export default function Home() {
   }
 
   const { picks, briefs } = useMemo(() => {
-    const byScore = (a: Article, b: Article) => (b.score ?? 0) - (a.score ?? 0);
-    const full = articles
-      .filter((a) => !a.titleOnly && a.status !== 'meta_only')
-      .sort(byScore);
+    // 保持接口返回的顺序（服务端已按主题贴合度排好），这里再排序就会和前面对不上
+    const full = articles.filter((a) => !a.titleOnly && a.status !== 'meta_only');
     const short = articles
       .filter((a) => a.titleOnly || a.status === 'meta_only')
-      .sort(byScore);
+      .sort((a: Article, b: Article) => (b.score ?? 0) - (a.score ?? 0));
     return { picks: full, briefs: short };
   }, [articles]);
 
