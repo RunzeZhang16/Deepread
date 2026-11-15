@@ -54,3 +54,15 @@ sudo docker restart deepread
 # 备份数据库（必须用 VACUUM INTO，不能直接 cp）
 sudo docker exec deepread node -e "const D=require('better-sqlite3');new D('/app/data/deepread.db').exec(\"VACUUM INTO '/app/data/backup.db'\")"
 ```
+
+## 用 docker-compose 起整套（含 nginx）
+
+```bash
+docker compose up -d --build
+```
+
+会同时起应用容器和 nginx（80 端口）。等买到域名后：
+
+1. 把 `ops/nginx.conf` 里的 `server_name` 改成你的域名
+2. 放开 `docker-compose.yml` 里的 443 端口
+3. 用 certbot 申请证书
