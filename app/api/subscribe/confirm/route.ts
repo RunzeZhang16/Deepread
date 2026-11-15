@@ -29,6 +29,6 @@ export async function GET(req: Request) {
   return page(
     '订阅成功',
     `<p style="font-size:16px;line-height:1.9;margin:0 0 8px;">好了，你订上了。</p>
-     <p style="font-size:14px;line-height:1.9;color:#8a8378;margin:0;">每天下午 5 点，一封邮件，8 篇文章。</p>`
+     <p style="font-size:14px;line-height:1.9;color:#8a8378;margin:0;">每周五晚 7 点，一封邮件，8 篇文章。</p>`
   );
 }

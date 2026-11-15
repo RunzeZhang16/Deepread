@@ -10,7 +10,7 @@ export interface SavedItem {
 
 const SAVED_KEY = 'dr_saved_v1';
 const READ_KEY = 'dr_read_v1';
-export const SAVED_TTL = 7 * 24 * 60 * 60 * 1000; // 7 天
+export const SAVED_TTL = 14 * 24 * 60 * 60 * 1000; // 14 天
 
 function readJson<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined') return fallback;

@@ -50,7 +50,7 @@ export default function SubscribeForm({ variant = 'card', source = 'home' }: { v
     <section className={variant === 'card' ? 'sub-card' : 'sub-compact'}>
       {variant === 'card' && (
         <>
-          <h2>每天 17:00，8 篇文章发到你邮箱</h2>
+          <h2>每周五晚 7 点，8 篇文章发到你邮箱</h2>
           <p className="sub-sub">不用记网址，也不用打开公众号。只发这个，随时退订。</p>
         </>
       )}
@@ -74,7 +74,7 @@ export default function SubscribeForm({ variant = 'card', source = 'home' }: { v
       )}
 
       {state === 'error' && <p className="sub-err">{msg}</p>}
-      {variant === 'compact' && !done && <p className="sub-hint">每天 17:00 一封，随时退订</p>}
+      {variant === 'compact' && !done && <p className="sub-hint">每周五晚 7 点一封，随时退订</p>}
     </section>
   );
 }

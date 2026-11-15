@@ -1,4 +1,5 @@
 import { getDb } from './db';
+import { buildThemePlan, readThemePlan, saveThemePlan } from './theme.mjs';
 import { listArticles, todayEdition, type Article } from './store';
 
 const ACCENT = '#a8442e';
@@ -218,7 +219,7 @@ function allDay(): string | null {
   return row?.d ?? null;
 }
 
-export async function buildWechatArticle(): Promise<{ title: string; html: string; count: number; order: number[]; theme: string }> {
+export async function buildWechatArticle(): Promise<{ title: string; html: string; count: number; order: string[]; theme: string }> {
   // 用内容所在的那一期做日期（跨零点时也不会错位）
   const day = allDay() ?? todayEdition();
   const all = listArticles();
@@ -227,8 +228,24 @@ export async function buildWechatArticle(): Promise<{ title: string; html: strin
     .sort((a, b) => (b.score ?? 0) - (a.score ?? 0) || a.id.localeCompare(b.id));
   const briefs = all.filter((a) => a.titleOnly || a.status === 'meta_only');
 
-  const plan = await buildPlanOnce(picks, day);
-  const ordered = plan.order.map((i) => picks[i]).filter(Boolean);
+  // 出刊时已经生成过主题就用它，保证网页/公众号/邮件顺序一致
+  const stored = readThemePlan(getDb(), day) as { title: string; theme: string; order: string[] } | null;
+  let plan: { title: string; theme: string; order: string[] };
+  let ordered: Article[];
+
+  if (stored) {
+    plan = stored;
+    const byId = new Map(picks.map((a) => [a.id, a]));
+    ordered = plan.order.map((id) => byId.get(id)).filter((x): x is Article => Boolean(x));
+    for (const a of picks) if (!ordered.includes(a)) ordered.push(a);
+  } else {
+    const fresh = await buildThemePlan(getDb(), day, picks.map((a) => ({ id: a.id, title: a.title, hook: a.hook })));
+    saveThemePlan(getDb(), day, fresh);
+    const byId = new Map(picks.map((a) => [a.id, a]));
+    plan = fresh;
+    ordered = fresh.order.map((id) => byId.get(id)).filter((x): x is Article => Boolean(x));
+    for (const a of picks) if (!ordered.includes(a)) ordered.push(a);
+  }
   const intro = await buildIntro(ordered, day);
   const title = plan.title;
   picks = ordered;

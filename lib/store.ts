@@ -4,6 +4,7 @@ import { fetchArticle, toStored } from './extract.mjs';
 import { generateBrief, hasLLM } from './llm';
 import { cleanTitle } from './title.mjs';
 import { getDb, parseQuestions, parseAnswers } from './db';
+import { readThemePlan } from './theme.mjs';
 
 export type Status = 'full' | 'meta_only' | 'failed';
 
@@ -142,7 +143,19 @@ export function listArticles(): Article[] {
   const rows = db
     .prepare('SELECT * FROM articles WHERE edition = ? ORDER BY score DESC NULLS LAST, id ASC')
     .all(edition) as ArticleRow[];
-  return rows.map(toArticle);
+
+  // 网页、公众号、邮件用同一份顺序：主题贴合度由高到低，速览排最后
+  const plan = readThemePlan(db, edition) as { order: string[] } | null;
+  const list = rows.map(toArticle);
+  if (!plan) return list;
+
+  const rank = new Map(plan.order.map((id, i) => [id, i]));
+  return list.sort((a, b) => {
+    const ra = rank.has(a.id) ? (rank.get(a.id) as number) : 9999;
+    const rb = rank.has(b.id) ? (rank.get(b.id) as number) : 9999;
+    if (ra !== rb) return ra - rb;
+    return (b.score ?? 0) - (a.score ?? 0);
+  });
 }
 
 export function findArticle(id: string): Article | undefined {

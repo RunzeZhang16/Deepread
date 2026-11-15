@@ -9,10 +9,13 @@ import { fetchArticle } from '../lib/extract.mjs';
 import { generateBrief } from '../lib/llm.mjs';
 import { cleanTitle } from '../lib/title.mjs';
 import { findDuplicates } from '../lib/dedupe.mjs';
+import { buildThemePlan, saveThemePlan } from '../lib/theme.mjs';
 
 const COUNT = Number(process.argv[2] ?? 8);
 const PER_SOURCE_MAX = 2;      // 同一来源最多 2 篇，保证多样性
 const MIN_SCORE = 60;
+const WINDOW_DAYS = 7;         // 周更：从过去 7 天的候选里挑
+const FRESH_DECAY = 0.05;      // 每旧一天扣 5%，避免老高分文章长期霸榜
 
 const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai' }).format(new Date());
 const db = getDb();
@@ -45,11 +48,13 @@ const briefSourceIds = new Set(
 
 const pool = db
   .prepare(
-    `SELECT * FROM candidates
+    `SELECT *, (score * (1 - MIN(6, CAST(julianday('now') - julianday(fetched_at) AS INTEGER)) * ?)) AS adj
+     FROM candidates
      WHERE status = 'new' AND score IS NOT NULL AND score >= ?
-     ORDER BY score DESC`
+       AND fetched_at >= datetime('now', ?)
+     ORDER BY adj DESC`
   )
-  .all(MIN_SCORE)
+  .all(FRESH_DECAY, MIN_SCORE, `-${WINDOW_DAYS} day`)
   .filter((c) => !briefSourceIds.has(c.source_id));
 
 // 已在文章库里的跳过
@@ -157,4 +162,18 @@ for (let idx = 0; idx < list.length; idx++) {
 db.prepare("UPDATE articles SET edition = ? WHERE title_only = 1 AND edition IS NULL").run(today);
 
 const total = db.prepare('SELECT COUNT(*) n FROM articles WHERE edition = ?').get(today).n;
+// 生成这期的主题（网页/公众号/邮件共用同一份顺序）
+try {
+  const rows = db
+    .prepare("SELECT id, title, hook FROM articles WHERE edition = ? AND title_only = 0")
+    .all(today);
+  if (rows.length) {
+    const plan = await buildThemePlan(db, today, rows);
+    saveThemePlan(db, today, plan);
+    console.log(`本期主题：${plan.title}`);
+  }
+} catch (e) {
+  console.log(`主题生成失败（不影响出刊）：${e.message}`);
+}
+
 console.log(`\n本期共 ${total} 篇（成功 ${ok}，跳过 ${failed}）`);
