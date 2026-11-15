@@ -33,7 +33,8 @@ const have = new Set(db.prepare('SELECT url FROM articles').all().map((r) => r.u
 
 // 清掉旧的速览
 const oldCount = db.prepare('SELECT COUNT(*) n FROM articles WHERE title_only = 1').get().n;
-db.prepare('DELETE FROM articles WHERE title_only = 1').run();
+// 只刷新今天的速览，往期保留，供归档页查看
+db.prepare("DELETE FROM articles WHERE title_only = 1 AND edition = ?").run(today);
 
 const pool = db
   .prepare(`SELECT * FROM candidates WHERE status != 'discarded' AND score IS NOT NULL ORDER BY score DESC`)

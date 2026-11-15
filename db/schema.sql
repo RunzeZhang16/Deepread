@@ -123,3 +123,17 @@ CREATE TABLE IF NOT EXISTS chat_quota (
   count      INTEGER DEFAULT 0,
   PRIMARY KEY (aid, article_id, day)
 );
+
+-- 邮件订阅（双重确认）
+CREATE TABLE IF NOT EXISTS subscribers (
+  id              TEXT PRIMARY KEY,
+  email           TEXT NOT NULL UNIQUE,
+  status          TEXT NOT NULL DEFAULT 'pending', -- pending | confirmed | unsubscribed
+  source          TEXT,
+  confirm_token   TEXT,
+  unsub_token     TEXT,
+  created_at      TEXT NOT NULL,
+  confirmed_at    TEXT,
+  unsubscribed_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_subscribers_status ON subscribers(status);

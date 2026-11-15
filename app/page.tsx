@@ -5,6 +5,8 @@ import Link from 'next/link';
 import type { Article } from '@/lib/store';
 import ChatPanel from '@/components/ChatPanel';
 import { track } from '@/lib/track';
+import { getRead, getSaved, markRead, toggleSaved } from '@/lib/local';
+import SubscribeForm from '@/components/SubscribeForm';
 
 type Hint = { kind: 'ok' | 'err' | 'info'; text: string } | null;
 type Ask = { article: Article; question: string } | null;
@@ -27,6 +29,8 @@ export default function Home() {
   const [hint, setHint] = useState<Hint>(null);
   const [pendingAsk, setPendingAsk] = useState<Ask>(null);
   const [chat, setChat] = useState<Ask>(null);
+  const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [readIds, setReadIds] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     try {
@@ -42,7 +46,20 @@ export default function Home() {
   useEffect(() => {
     load();
     track('page_view');
+    setSavedIds(getSaved().map((x) => x.id));
+    setReadIds(Object.keys(getRead()));
   }, [load]);
+
+  function onSave(a: { id: string; title: string; url: string; account?: string | null }) {
+    const now = toggleSaved({ id: a.id, title: a.title, url: a.url, account: a.account ?? undefined });
+    track(now ? 'save_click' : 'unsave_click', { id: a.id });
+    setSavedIds(getSaved().map((x) => x.id));
+  }
+
+  function onOpen(a: { id: string }) {
+    markRead(a.id);
+    setReadIds(Object.keys(getRead()));
+  }
 
   const { picks, briefs } = useMemo(() => {
     const byScore = (a: Article, b: Article) => (b.score ?? 0) - (a.score ?? 0);
@@ -106,7 +123,21 @@ export default function Home() {
             <h1>Deepread</h1>
             <span className="brand-sub">精选优质媒体文章 · 个人博客</span>
           </div>
-          <p className="dateline">{today()}</p>
+          <p className="dateline">
+            <Link href="/archive" className="nav-link">
+              往期
+            </Link>
+            <span className="nav-sep">·</span>
+            <Link href="/saved" className="nav-link">
+              收藏
+            </Link>
+            <span className="nav-sep">·</span>
+            <a href="#subscribe" className="nav-link">
+              邮件
+            </a>
+            <span className="nav-sep">·</span>
+            {today()}
+          </p>
         </header>
         <div className="rule" aria-hidden="true">
           <span className="rule-dot" />
@@ -150,21 +181,38 @@ export default function Home() {
           <p className="empty">加载中…</p>
         ) : (
           <>
-            <section className="picks">
+            <section className="picks" id="picks">
               {picks.map((a) => (
-                <article className="pick" key={a.id} data-cat={a.category ?? ''}>
-                  <h2>
-                    <a
-                      href={a.url}
-                      target="_blank"
-                      rel="noreferrer noopener"
-                      onClick={() =>
-                        track('article_click', { id: a.id, cat: a.category ?? '', score: a.score ?? null })
-                      }
+                <article
+                  className={`pick${readIds.includes(a.id) ? ' read' : ''}`}
+                  key={a.id}
+                  data-cat={a.category ?? ''}
+                >
+                  <div className="pick-head">
+                    <h2>
+                      <a
+                        href={a.url}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        onClick={() => {
+                          track('article_click', { id: a.id, cat: a.category ?? '', score: a.score ?? null });
+                          onOpen(a);
+                        }}
+                      >
+                        {a.title}
+                      </a>
+                      {readIds.includes(a.id) && <span className="read-tag">已读</span>}
+                    </h2>
+                    <button
+                      type="button"
+                      className={`save-btn${savedIds.includes(a.id) ? ' on' : ''}`}
+                      aria-label={savedIds.includes(a.id) ? '取消收藏' : '收藏'}
+                      title={savedIds.includes(a.id) ? '取消收藏' : '收藏，7 天后自动清理'}
+                      onClick={() => onSave(a)}
                     >
-                      {a.title}
-                    </a>
-                  </h2>
+                      {savedIds.includes(a.id) ? '★' : '☆'}
+                    </button>
+                  </div>
 
                   {a.summary && <p className="pick-summary">{a.summary}</p>}
 
@@ -232,6 +280,10 @@ export default function Home() {
                 </article>
               ))}
             </section>
+
+            <div id="subscribe">
+              <SubscribeForm variant="card" source="after_list" />
+            </div>
 
             {briefs.length > 0 && (
               <section className="briefs">

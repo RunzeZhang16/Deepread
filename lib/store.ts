@@ -101,6 +101,37 @@ function toArticle(row: ArticleRow): Article {
   };
 }
 
+export interface EditionInfo {
+  edition: string;
+  count: number;
+  picks: number;
+}
+
+/** 所有可展示的期数（新到旧） */
+export function listEditions(): EditionInfo[] {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `SELECT edition, COUNT(*) count,
+              SUM(CASE WHEN title_only = 0 THEN 1 ELSE 0 END) picks
+       FROM articles
+       WHERE edition IS NOT NULL AND edition != '0000-00-00'
+       GROUP BY edition
+       ORDER BY edition DESC`
+    )
+    .all() as EditionInfo[];
+  return rows;
+}
+
+/** 某一期的全部内容 */
+export function listArticlesByEdition(edition: string): Article[] {
+  const db = getDb();
+  const rows = db
+    .prepare('SELECT * FROM articles WHERE edition = ? ORDER BY title_only ASC, score DESC NULLS LAST, id ASC')
+    .all(edition) as ArticleRow[];
+  return rows.map(toArticle);
+}
+
 export function listArticles(): Article[] {
   const db = getDb();
   // 只展示最新一期
