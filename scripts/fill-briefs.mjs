@@ -15,6 +15,7 @@ import { findDuplicates } from '../lib/dedupe.mjs';
 
 const COUNT = Number(process.argv[2] ?? 5);
 const db = getDb();
+const todayStr = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai' }).format(new Date());
 
 /** 按北京时间判断是不是今天 */
 function isToday(iso) {
@@ -34,7 +35,7 @@ const have = new Set(db.prepare('SELECT url FROM articles').all().map((r) => r.u
 // 清掉旧的速览
 const oldCount = db.prepare('SELECT COUNT(*) n FROM articles WHERE title_only = 1').get().n;
 // 只刷新今天的速览，往期保留，供归档页查看
-db.prepare("DELETE FROM articles WHERE title_only = 1 AND edition = ?").run(today);
+db.prepare("DELETE FROM articles WHERE title_only = 1 AND edition = ?").run(todayStr);
 
 const pool = db
   .prepare(`SELECT * FROM candidates WHERE status != 'discarded' AND score IS NOT NULL ORDER BY score DESC`)
@@ -105,7 +106,6 @@ if (picked.length === 0) {
   console.log('\n⚠ 今天没有找到当日发布的条目');
 } else {
   const now = new Date().toISOString();
-  const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai' }).format(new Date());
   const ins = db.prepare(`
     INSERT INTO articles (id, url, title, account, site, status, word_count, excerpt, summary, questions,
                           published_at, fetched_at, category, title_only, score, note, edition)
@@ -129,7 +129,7 @@ if (picked.length === 0) {
         fetchedAt: now,
         category: c.category ?? null,
         score: c.score,
-        edition: today,
+        edition: todayStr,
       });
       mark.run(c.id);
     }
