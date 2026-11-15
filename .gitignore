@@ -4,7 +4,6 @@ node_modules/
 
 # 构建产物
 .next/
-deploy/
 *.zip
 
 # 本地环境与密钥（绝不入库）
@@ -34,3 +33,5 @@ data/*.db-shm
 
 # 部署密钥
 .ssh/
+# 部署配置纳入版本管理
+!ops/
