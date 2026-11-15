@@ -4,7 +4,7 @@
 
 import { getDb } from '../lib/db.mjs';
 import { hasMailer, sendDigestMail, siteUrl } from '../lib/mailer.mjs';
-import { readThemePlan } from '../lib/theme.mjs';
+import { buildThemePlan, readThemePlan, saveThemePlan } from '../lib/theme.mjs';
 
 if (!hasMailer()) {
   console.log('邮件未配置，跳过订阅者群发。');
@@ -43,8 +43,16 @@ let picks = db
   )
   .all(edition);
 
-// 用出刊时定下的主题顺序
-const plan = readThemePlan(db, edition);
+// 用出刊时定下的主题顺序；没有就现在生成一份，保证和网页、公众号一致
+let plan = readThemePlan(db, edition);
+if (!plan) {
+  const rows = db
+    .prepare('SELECT id, title, hook FROM articles WHERE edition = ? AND title_only = 0')
+    .all(edition);
+  plan = await buildThemePlan(db, edition, rows);
+  saveThemePlan(db, edition, plan);
+  console.log(`补生成主题：${plan.title}`);
+}
 if (plan && Array.isArray(plan.order)) {
   const idx = new Map(plan.order.map((id, i) => [id, i]));
   picks = picks

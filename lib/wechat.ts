@@ -256,7 +256,6 @@ export async function buildWechatArticle(): Promise<{ title: string; html: strin
   <section style="margin:0 0 26px;">
     <p style="margin:0 0 6px;font-size:12px;color:${ACCENT};letter-spacing:0.12em;">0${i + 1}</p>
     <h2 style="margin:0 0 8px;font-size:17px;line-height:1.6;color:${INK};font-weight:600;">${esc(a.title)}</h2>
-    ${a.hook ? `<p style="margin:0 0 6px;font-size:14px;line-height:1.85;color:#44403c;">${esc(a.hook)}</p>` : ''}
     <p style="margin:0;font-size:11.5px;color:${MUTED};">${esc(a.account ?? '')}</p>
   </section>`
     )
