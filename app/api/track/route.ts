@@ -11,7 +11,13 @@ const ALLOWED = new Set([
   'next_click',
   'article_click',
   'brief_click',
+  'subscribe_view',
+  'subscribe_submit',
   'subscribe_click',
+  'save_click',
+  'unsave_click',
+  'saved_read_click',
+  'saved_open',
 ]);
 
 export async function POST(req: Request) {

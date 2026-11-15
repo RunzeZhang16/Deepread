@@ -14,6 +14,7 @@ export function sendConfirmMail(email: string, token: string) {
 
 export interface DigestData {
   title: string;
+  lead?: string;
   intro: string;
   url: string;
   items: { title: string; account?: string }[];

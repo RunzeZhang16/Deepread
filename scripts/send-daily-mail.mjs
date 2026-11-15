@@ -33,6 +33,10 @@ if (picks.length === 0) {
   process.exit(0);
 }
 
+// 期号：从第一期开始算
+const issueNo =
+  db.prepare("SELECT COUNT(DISTINCT edition) n FROM articles WHERE edition <= ? AND edition <> '0000-00-00'").get(edition).n;
+
 const setting = (key) => {
   const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
   return row?.value ?? null;
@@ -54,7 +58,8 @@ const intro =
   `今天挑了 ${picks.length} 篇，都值得坐下来读完。`;
 
 const subs = db.prepare("SELECT email, unsub_token FROM subscribers WHERE status = 'confirmed'").all();
-console.log(`订阅者 ${subs.length} 人，开始发送「${title}」`);
+const subject = `Deepread 第 ${issueNo} 期`;
+console.log(`订阅者 ${subs.length} 人，开始发送「${subject}」`);
 
 let ok = 0;
 let fail = 0;
@@ -62,9 +67,10 @@ let fail = 0;
 for (const s of subs) {
   try {
     await sendDigestMail(s.email, {
-      title,
+      title: subject,
       intro,
       url: siteUrl(),
+      lead: title,
       items: picks.map((p) => ({ title: p.title, account: p.account ?? undefined })),
       unsubUrl: `${siteUrl()}/api/unsubscribe?token=${s.unsub_token}`,
     });
