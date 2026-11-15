@@ -35,3 +35,4 @@ data/*.db-shm
 .ssh/
 # 部署配置纳入版本管理
 !ops/
+*.tsbuildinfo
