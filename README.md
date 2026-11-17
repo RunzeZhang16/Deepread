@@ -2,7 +2,7 @@
 
 每周 8 篇中文好文章。每篇配一段摘要、两个问题——点开问题，可以接着和 AI 聊这篇文章。
 
-线上：http://124.220.163.131:3000（跑过 `ops/deploy.sh` 之后改为不带端口的 80）
+线上：http://124.220.163.131（nginx 80 端口，应用容器不对外暴露）
 
 ## 它解决什么
 
@@ -50,14 +50,15 @@ npm run stats      # 看 8 个核心指标
 
 ## 部署
 
-服务器上仓库放在 `/opt/deepread`（数据库就在这个目录的 `data/` 里）：
+服务器上仓库放在 `/opt/deepread`，数据在 `/opt/deepread/data/deepread.db`：
 
 ```bash
-cp .env.example .env    # 填密钥；SITE_URL 不要带 :3000
-sudo bash ops/deploy.sh
+cd /opt/deepread
+sudo bash ops/deploy.sh     # git pull → 构建 → 切换 compose
 ```
 
-公网只开放 80 和 443。应用不再映射 3000。
+docker compose 同时起应用和 nginx；公网只走 80/443，应用不映射端口。
+数据库备份：`sudo bash ops/backup.sh`（每周五出刊后自动执行，保留 8 份）。
 
 ## 目录
 
