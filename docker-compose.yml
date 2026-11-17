@@ -1,17 +1,33 @@
+name: deepread
+
 services:
   app:
     build: .
-    container_name: deepread-app
+    container_name: deepread
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - DB_PATH=/app/data/deepread.db
-      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      NODE_ENV: production
+      PORT: "3000"
+      DB_PATH: /app/data/deepread.db
+      # 写接口在线上关掉。周五流水线在这个容器里直接写 SQLite，不走 API。
+      READONLY: "1"
     volumes:
-      - ./data:/app/data
+      - ${DATA_DIR:-./data}:/app/data
     expose:
       - "3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/articles').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   nginx:
     image: nginx:1.27-alpine
@@ -19,10 +35,17 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
-      # 有域名和证书后再放开 443
-      # - "443:443"
+      - "443:443"
     volumes:
-      - ./ops/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      # - ./ops/certs:/etc/nginx/certs:ro
+      # 由 ops/deploy.sh 生成：有证书时是 HTTPS 配置，否则只监听 80
+      - ./ops/nginx.active.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ops/certs:/etc/nginx/certs:ro
+      - ./ops/certbot:/var/www/certbot:ro
     depends_on:
-      - app
+      app:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

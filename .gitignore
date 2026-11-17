@@ -30,6 +30,14 @@ assets/
 data/*.db
 data/*.db-wal
 data/*.db-shm
+data/backups/
+
+# 部署时在服务器上生成，以及证书私钥
+ops/nginx.active.conf
+ops/certs/*
+!ops/certs/.gitkeep
+ops/certbot/*
+!ops/certbot/.gitkeep
 
 # 部署密钥
 .ssh/

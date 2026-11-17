@@ -26,6 +26,7 @@ COPY --from=builder /app/lib ./lib
 COPY --from=builder /app/components ./components
 COPY --from=builder /app/config ./config
 COPY --from=builder /app/db ./db
+# 定时任务打进镜像，和仓库一起发布。不要再把宿主机的 scripts 目录挂进来。
 COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/next.config.mjs ./next.config.mjs
 COPY --from=builder /app/tsconfig.json ./tsconfig.json

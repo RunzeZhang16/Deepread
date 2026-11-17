@@ -2,7 +2,7 @@
 
 每周 8 篇中文好文章。每篇配一段摘要、两个问题——点开问题，可以接着和 AI 聊这篇文章。
 
-线上：http://124.220.163.131:3000
+线上：http://124.220.163.131:3000（跑过 `ops/deploy.sh` 之后改为不带端口的 80）
 
 ## 它解决什么
 
@@ -46,7 +46,18 @@ npm run wechat-mail# 公众号稿发到自己邮箱
 npm run stats      # 看 8 个核心指标
 ```
 
-每周五 19:00 由服务器 cron 串起来跑，配置见 `ops/README.md`。
+每周五 19:00 由服务器 cron 串起来跑。发布、反向代理和备份见 [ops/README.md](ops/README.md)。
+
+## 部署
+
+服务器上仓库放在 `/opt/deepread`（数据库就在这个目录的 `data/` 里）：
+
+```bash
+cp .env.example .env    # 填密钥；SITE_URL 不要带 :3000
+sudo bash ops/deploy.sh
+```
+
+公网只开放 80 和 443。应用不再映射 3000。
 
 ## 目录
 

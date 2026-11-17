@@ -4,7 +4,12 @@ node_modules
 .vc-home
 assets
 docs
+.env
 .env.local
+data/backups
+ops/certs
+ops/certbot
+ops/nginx.active.conf
 .git
 *.zip
 data/articles.backup-*.json
