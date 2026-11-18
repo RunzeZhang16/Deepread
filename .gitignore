@@ -44,3 +44,5 @@ ops/certbot/*
 # 部署配置纳入版本管理
 !ops/
 *.tsbuildinfo
+# 文档只在本地保留，不发布
+/docs/
