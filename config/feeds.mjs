@@ -25,6 +25,27 @@ export const titleBlocklist = [
 // 只要近两周内发布的
 export const MAX_AGE_DAYS = 14;
 
+/**
+ * 明显不是「可读文章」的链接：播客、电台、音视频页。
+ * 这个产品只推荐能读的文字，音频节目直接不收。
+ */
+const NON_ARTICLE_PATTERNS = [
+  /gcores\.com\/radios\//i,        // 机核电台
+  /xiaoyuzhoufm\.com\/episode/i,    // 小宇宙
+  /podcasts\.apple\.com/i,          // Apple Podcasts
+  /ximalaya\.com/i,                 // 喜马拉雅
+  /qingting\.fm/i,                  // 蜻蜓 FM
+  /lizhi\.fm/i,                     // 荔枝
+  /\/podcast\//i,
+  /\/episode\//i,
+  /\/radios?\//i,
+  /\/audio\//i,
+];
+
+export function isNonArticleUrl(url) {
+  return NON_ARTICLE_PATTERNS.some((re) => re.test(String(url)));
+}
+
 // 源级黑名单：命中就不抓（这些站是 AI 生成的二手解读，不是原创内容）
 export const blockedSources = [
   { name: /AI\s*解读/i, reason: 'AI 生成的解读站' },

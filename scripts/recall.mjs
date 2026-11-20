@@ -6,7 +6,7 @@
 import path from 'node:path';
 import crypto from 'node:crypto';
 import Parser from 'rss-parser';
-import { titleBlocklist, MAX_AGE_DAYS, isBlockedSource } from '../config/feeds.mjs';
+import { titleBlocklist, MAX_AGE_DAYS, isBlockedSource, isNonArticleUrl } from '../config/feeds.mjs';
 import { extractArticles, fetchHtml } from '../lib/listpage.mjs';
 import { getDb } from '../lib/db.mjs';
 
@@ -159,7 +159,7 @@ async function main() {
     // 按源权重排，保证重复条目归到权重高的源
     const feed = r.feed;
     for (const it of r.items) {
-      if (blocked(it.title)) {
+      if (blocked(it.title) || isNonArticleUrl(it.url)) {
         droppedBlocked++;
         continue;
       }

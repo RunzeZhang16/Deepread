@@ -9,6 +9,7 @@ import { fetchArticle } from '../lib/extract.mjs';
 import { generateBrief } from '../lib/llm.mjs';
 import { cleanTitle } from '../lib/title.mjs';
 import { findDuplicates } from '../lib/dedupe.mjs';
+import { isNonArticleUrl } from '../config/feeds.mjs';
 import { buildThemePlan, saveThemePlan } from '../lib/theme.mjs';
 
 const COUNT = Number(process.argv[2] ?? 8);
@@ -55,7 +56,8 @@ const pool = db
      ORDER BY adj DESC`
   )
   .all(FRESH_DECAY, MIN_SCORE, `-${WINDOW_DAYS} day`)
-  .filter((c) => !briefSourceIds.has(c.source_id));
+  .filter((c) => !briefSourceIds.has(c.source_id))
+  .filter((c) => !isNonArticleUrl(c.url));
 
 // 已在文章库里的跳过
 const have = new Set(db.prepare('SELECT url FROM articles').all().map((r) => r.url));
