@@ -54,7 +54,8 @@ CREATE TABLE IF NOT EXISTS articles (
   enrich_error  TEXT,
   edition       TEXT,
   answers       TEXT,  -- 预生成的问题答案 JSON
-  hook          TEXT   -- 公众号钩子句
+  hook          TEXT,  -- 公众号钩子句
+  is_cover      INTEGER DEFAULT 0  -- 本期专题（封面文章）
 );
 CREATE INDEX IF NOT EXISTS idx_art_fetched ON articles(fetched_at DESC);
 

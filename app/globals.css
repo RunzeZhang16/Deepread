@@ -863,3 +863,23 @@ a { color: inherit; }
 .sub-err { font-size: 12.5px; color: #8c3520; margin: 10px 0 0; }
 .sub-compact { margin: 26px 0 0; }
 .sub-hint { font-size: 11px; color: var(--faint); margin: 7px 0 0; }
+
+/* ---------- 本期专题（封面文章） ---------- */
+.cover-label {
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  color: var(--accent);
+  margin: 0 0 10px;
+}
+.pick.cover {
+  position: relative;
+  margin: 8px 0 4px;
+  padding: 24px 22px 22px;
+  border-left: 3px solid var(--accent);
+  background: linear-gradient(180deg, var(--paper-deep) 0%, rgba(244, 241, 234, 0.45) 100%);
+  border-radius: 0 8px 8px 0;
+  border-bottom: 0;
+}
+.pick.cover h2 { font-size: 23px; line-height: 1.45; margin-bottom: 16px; }
+.pick.cover .pick-summary { color: var(--ink-2); font-size: 15px; }
+.pick.cover h2::before { display: none; }

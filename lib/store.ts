@@ -34,6 +34,8 @@ export interface Article {
   questions?: string[];
   answers?: { q: string; a: string; next: string }[];
   hook?: string | null;
+  /** 本期专题（封面文章） */
+  isCover?: boolean;
   edition?: string;
   enrichedAt?: string;
   enrichError?: string;
@@ -67,6 +69,7 @@ interface ArticleRow {
   questions: string | null;
   answers: string | null;
   hook: string | null;
+  is_cover: number | null;
   published_at: string | null;
   fetched_at: string | null;
   category: string | null;
@@ -98,6 +101,7 @@ function toArticle(row: ArticleRow): Article {
     questions: parseQuestions(row.questions),
     answers: parseAnswers(row.answers),
     hook: row.hook ?? null,
+    isCover: Boolean(row.is_cover),
     enrichError: row.enrich_error ?? undefined,
   };
 }
@@ -146,13 +150,13 @@ export function listArticles(): Article[] {
     .prepare('SELECT * FROM articles WHERE edition = ? ORDER BY score DESC NULLS LAST, id ASC')
     .all(edition) as ArticleRow[];
 
-  // 网页、公众号、邮件用同一份顺序：主题贴合度由高到低，速览排最后
+  // 顺序：专题永远第一，其余按主题贴合度；速览自然排在最后
   const plan = readThemePlan(db, edition) as { order: string[] } | null;
   const list = rows.map(toArticle);
-  if (!plan) return list;
+  const rank = new Map((plan?.order ?? []).map((id, i) => [id, i]));
 
-  const rank = new Map(plan.order.map((id, i) => [id, i]));
   return list.sort((a, b) => {
+    if (a.isCover !== b.isCover) return a.isCover ? -1 : 1;
     const ra = rank.has(a.id) ? (rank.get(a.id) as number) : 9999;
     const rb = rank.has(b.id) ? (rank.get(b.id) as number) : 9999;
     if (ra !== rb) return ra - rb;

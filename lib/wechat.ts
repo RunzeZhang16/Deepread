@@ -246,11 +246,32 @@ export async function buildWechatArticle(): Promise<{ title: string; html: strin
     ordered = fresh.order.map((id) => byId.get(id)).filter((x): x is Article => Boolean(x));
     for (const a of picks) if (!ordered.includes(a)) ordered.push(a);
   }
-  const intro = await buildIntro(ordered, day);
+  const intro = (plan as { intro?: string }).intro?.trim() || (await buildIntro(ordered, day));
   const title = plan.title;
   picks = ordered;
 
-  const listBlock = picks
+  const cover = ordered.find((a) => a.isCover) ?? null;
+  const rest = ordered.filter((a) => a.id !== cover?.id);
+
+  const coverBlock = cover
+    ? `
+  <section style="margin:0 0 30px;padding:0 0 26px;border-bottom:1px solid ${LINE};">
+    <p style="margin:0 0 10px;font-size:12px;color:${ACCENT};letter-spacing:0.16em;">本 期 专 题</p>
+    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.55;color:${INK};font-weight:600;">${esc(cover.title)}</h2>
+    ${cover.hook ? `<p style="margin:0 0 10px;font-size:14.5px;line-height:1.9;color:#44403c;">${esc(cover.hook)}</p>` : ''}
+    ${
+      cover.questions?.length
+        ? `<p style="margin:0 0 10px;font-size:13px;line-height:1.9;color:${ACCENT};">${cover.questions
+            .slice(0, 2)
+            .map((q) => `· ${esc(q)}`)
+            .join('<br/>')}</p>`
+        : ''
+    }
+    <p style="margin:0;font-size:11.5px;color:${MUTED};">${esc(cover.account ?? '')}${cover.wordCount ? ` · ${cover.wordCount} 字` : ''}</p>
+  </section>`
+    : '';
+
+  const listBlock = rest
     .map(
       (a, i) => `
   <section style="margin:0 0 26px;">
@@ -265,16 +286,18 @@ export async function buildWechatArticle(): Promise<{ title: string; html: strin
   <section style="margin:0 0 26px;padding:16px 18px;background:#faf7f2;border-left:3px solid ${ACCENT};">
     <p style="margin:0;font-size:13px;line-height:1.9;color:#5c5347;">${esc(EPIGRAPH)}</p>
   </section>
-  <p style="margin:0 0 18px;font-size:14px;line-height:1.9;color:#44403c;">${esc(intro)}</p>
+  <p style="margin:0 0 18px;font-size:14px;line-height:1.9;color:#44403c;">${esc(intro).replace(/\n+/g, '<br/><br/>')}</p>
   <section style="margin:0 0 30px;padding:16px 18px;background:#faf7f2;border-left:3px solid ${ACCENT};">
     <p style="margin:0;font-size:13.5px;line-height:1.85;color:#44403c;">
       这 ${picks.length} 篇的全文，以及每篇后面都能点开问题、和 AI 接着聊——都在「阅读原文」。
     </p>
   </section>
+  ${coverBlock}
+  ${cover ? `<p style="margin:0 0 14px;font-size:12px;color:${MUTED};letter-spacing:0.14em;">本 期 其 他</p>` : ''}
   ${listBlock}
   <section style="margin:34px 0 0;padding-top:16px;border-top:1px solid ${LINE};">
     <p style="margin:0 0 8px;font-size:13.5px;line-height:1.85;color:#44403c;">
-      如果你也想知道这些文章后面是什么，点「阅读原文」，今天的 ${picks.length} 篇都在那里。
+      如果你也想知道这些文章后面是什么，点「阅读原文」，今天的 ${ordered.length} 篇都在那里。
     </p>
     <p style="margin:0;font-size:13.5px;color:${ACCENT};">点「阅读原文」→</p>
   </section>

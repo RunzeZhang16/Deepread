@@ -38,7 +38,7 @@ const issueNo =
 
 let picks = db
   .prepare(
-    `SELECT id, title, account FROM articles
+    `SELECT id, title, account, is_cover FROM articles
      WHERE edition = ? AND title_only = 0 ORDER BY score DESC NULLS LAST, id ASC`
   )
   .all(edition);
@@ -78,7 +78,10 @@ for (const s of subs) {
     await sendDigestMail(s.email, {
       title: subject,
       url: siteUrl(),
-      items: picks.map((p) => ({ title: p.title, account: p.account ?? undefined })),
+      items: picks.map((p) => ({
+        title: p.is_cover ? `【本期专题】${p.title}` : p.title,
+        account: p.account ?? undefined,
+      })),
       unsubUrl: `${siteUrl()}/api/unsubscribe?token=${s.unsub_token}`,
     });
     ok++;

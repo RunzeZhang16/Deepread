@@ -11,6 +11,7 @@ import { cleanTitle } from '../lib/title.mjs';
 import { findDuplicates } from '../lib/dedupe.mjs';
 import { isNonArticleUrl } from '../config/feeds.mjs';
 import { buildThemePlan, saveThemePlan } from '../lib/theme.mjs';
+import { refreshCover } from '../lib/cover.mjs';
 
 const COUNT = Number(process.argv[2] ?? 8);
 const PER_SOURCE_MAX = 2;      // 同一来源最多 2 篇，保证多样性
@@ -166,12 +167,16 @@ db.prepare("UPDATE articles SET edition = ? WHERE title_only = 1 AND edition IS 
 const total = db.prepare('SELECT COUNT(*) n FROM articles WHERE edition = ?').get(today).n;
 // 生成这期的主题（网页/公众号/邮件共用同一份顺序）
 try {
+  const coverId = refreshCover(db, today);
   const rows = db
-    .prepare("SELECT id, title, hook FROM articles WHERE edition = ? AND title_only = 0")
+    .prepare("SELECT id, title, hook, summary, word_count, score FROM articles WHERE edition = ? AND title_only = 0")
     .all(today);
+
   if (rows.length) {
-    const plan = await buildThemePlan(db, today, rows);
+    const cover = rows.find((r) => r.id === coverId) ?? null;
+    const plan = await buildThemePlan(db, today, rows, cover);
     saveThemePlan(db, today, plan);
+    console.log(cover ? `本期专题：${cover.title.slice(0, 26)}（${cover.word_count} 字）` : '本期没有专题');
     console.log(`本期主题：${plan.title}`);
   }
 } catch (e) {

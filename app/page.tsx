@@ -182,10 +182,11 @@ export default function Home() {
             <section className="picks" id="picks">
               {picks.map((a) => (
                 <article
-                  className={`pick${readIds.includes(a.id) ? ' read' : ''}`}
+                  className={`pick${readIds.includes(a.id) ? ' read' : ''}${a.isCover ? ' cover' : ''}`}
                   key={a.id}
                   data-cat={a.category ?? ''}
                 >
+                  {a.isCover && <p className="cover-label">本期专题</p>}
                   <div className="pick-head">
                     <h2>
                       <a

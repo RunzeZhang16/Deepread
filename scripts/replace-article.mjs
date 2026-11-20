@@ -8,6 +8,7 @@ import { fetchArticle } from '../lib/extract.mjs';
 import { generateBrief } from '../lib/llm.mjs';
 import { cleanTitle } from '../lib/title.mjs';
 import { buildThemePlan, saveThemePlan } from '../lib/theme.mjs';
+import { refreshCover } from '../lib/cover.mjs';
 import { isNonArticleUrl } from '../config/feeds.mjs';
 
 const target = process.argv[2];
@@ -110,10 +111,12 @@ if (!added) {
 }
 
 // 重新生成主题顺序
+const coverId = refreshCover(db, edition);
 const rows = db
-  .prepare("SELECT id, title, hook FROM articles WHERE edition = ? AND title_only = 0")
+  .prepare("SELECT id, title, hook, summary, word_count, score FROM articles WHERE edition = ? AND title_only = 0")
   .all(edition);
-const plan = await buildThemePlan(db, edition, rows);
+const cover = rows.find((r) => r.id === coverId) ?? null;
+const plan = await buildThemePlan(db, edition, rows, cover);
 saveThemePlan(db, edition, plan);
 
 console.log(`\n当期现有 ${rows.length} 篇；主题：${plan.title}`);
