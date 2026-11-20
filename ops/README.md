@@ -72,3 +72,31 @@ sudo tail -50 /var/log/deepread.log
 sudo bash /opt/deepread/ops/run-weekly.sh
 docker exec deepread npm run stats
 ```
+
+## 服务器连不上 GitHub 时
+
+腾讯云到 GitHub 偶尔会 TLS 失败或超时。这时 `ops/deploy.sh` 会卡在 `git pull`。
+
+两条出路：
+
+**① 本地用 bundle 同步（不依赖服务器出网）**
+
+```bash
+# 本地
+git bundle create /tmp/upd.bundle <服务器当前commit>..main
+scp /tmp/upd.bundle ubuntu@服务器:/tmp/
+
+# 服务器
+cd /opt/deepread
+sudo -u ubuntu git checkout -- .
+sudo -u ubuntu git fetch /tmp/upd.bundle main:refs/remotes/bundle/main
+sudo -u ubuntu git reset --hard bundle/main
+```
+
+**② 跳过拉取，直接构建**
+
+```bash
+sudo bash ops/deploy.sh --no-pull
+```
+
+前提是文件已经同步到位（scp 或 bundle）。

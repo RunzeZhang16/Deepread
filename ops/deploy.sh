@@ -3,6 +3,13 @@
 # 构建完成前不替换正在服务的旧容器。
 set -euo pipefail
 
+SKIP_PULL=0
+for arg in "$@"; do
+  case "$arg" in
+    --no-pull) SKIP_PULL=1 ;;
+  esac
+done
+
 cd "$(dirname "$0")/.."
 ROOT="$(pwd)"
 
@@ -80,7 +87,10 @@ fi
 ensure_swap
 
 # sudo 运行时用仓库主人的身份拉代码，避免 root 触发 git 的目录所有权检查。
-if [[ "$(id -u)" -eq 0 && -d .git ]]; then
+# --no-pull：服务器连不上 GitHub 时跳过拉取（文件需自行同步，见 ops/README.md）。
+if [[ "$SKIP_PULL" == "1" ]]; then
+  echo "跳过 git pull（--no-pull）"
+elif [[ "$(id -u)" -eq 0 && -d .git ]]; then
   owner="$(stat -c '%U' .git 2>/dev/null || true)"
   if [[ -n "$owner" && "$owner" != "root" ]]; then
     sudo -u "$owner" git pull --ff-only
