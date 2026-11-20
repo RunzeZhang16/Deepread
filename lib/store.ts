@@ -108,7 +108,7 @@ export interface EditionInfo {
   picks: number;
 }
 
-/** 所有可展示的期数（新到旧） */
+/** 往期：只列早于当前这期的（当前这期算"今天"，不算往期） */
 export function listEditions(): EditionInfo[] {
   const db = getDb();
   const rows = db
@@ -116,7 +116,9 @@ export function listEditions(): EditionInfo[] {
       `SELECT edition, COUNT(*) count,
               SUM(CASE WHEN title_only = 0 THEN 1 ELSE 0 END) picks
        FROM articles
-       WHERE edition IS NOT NULL AND edition != '0000-00-00'
+       WHERE edition IS NOT NULL
+         AND edition != '0000-00-00'
+         AND edition < (SELECT MAX(edition) FROM articles WHERE edition != '0000-00-00')
        GROUP BY edition
        ORDER BY edition DESC`
     )

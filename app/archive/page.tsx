@@ -45,7 +45,13 @@ export default async function ArchivePage() {
         })}
       </ul>
 
-      {editions.length === 0 && <p className="empty">还没有往期。</p>}
+      {editions.length === 0 && (
+        <p className="empty">
+          还没有往期。
+          <br />
+          下一期发布后，这一期就会出现在这里。
+        </p>
+      )}
       <div className="colophon">DEEPREAD</div>
     </main>
   );
