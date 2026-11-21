@@ -19,7 +19,7 @@ function fmtCN(date: string) {
 }
 
 /** 固定题记：为什么做这个产品 */
-const EPIGRAPH = `我每天都会读到几篇好东西，读完又很快忘了。做 Deepread，是想把这件事放慢一点：每天挑几篇，写清它讲了什么，再留两个问题。也许你会想接着聊两句——那样这篇文章才算真的读过。`;
+const EPIGRAPH = `读过的文章，多半在合上页面时就散了。做 Deepread，是想把这件事放慢一点：每期只选几篇长文，把脉络写清楚，把问题留下来。问题不是测验，而是邀请——愿意顺着它多聊几句，这次阅读才算完成。`;
 
 /** 从 settings 读缓存的小工具 */
 function cached(key: string): string | null {
