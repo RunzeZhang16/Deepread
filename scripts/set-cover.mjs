@@ -2,7 +2,7 @@
 // 给当前这一期重算专题，并重新生成主题/按语（换文章或调阈值后用）
 import { getDb } from '../lib/db.mjs';
 import { refreshCover } from '../lib/cover.mjs';
-import { buildThemePlan, saveThemePlan } from '../lib/theme.mjs';
+import { buildThemePlan, readThemePlan, saveThemePlan } from '../lib/theme.mjs';
 
 const db = getDb();
 const edition = db
@@ -18,8 +18,15 @@ const cover = rows.find((r) => r.id === coverId) ?? null;
 console.log(`当期 ${edition} · ${rows.length} 篇`);
 console.log(cover ? `专题：${cover.title}（${cover.word_count} 字 / ${cover.score} 分）` : '本期没有专题（没有 3000 字以上且 85 分以上的文章）');
 
+const introOnly = process.argv.includes('--intro-only');
+const before = readThemePlan(db, edition);
+
 if (rows.length) {
-  const plan = await buildThemePlan(db, edition, rows, cover);
+  let plan = await buildThemePlan(db, edition, rows, cover);
+  if (introOnly && before) {
+    // 只换按语，标题和顺序沿用原来的
+    plan = { ...plan, title: before.title, order: before.order };
+  }
   saveThemePlan(db, edition, plan);
   console.log(`标题：${plan.title}`);
   console.log(`按语：${(plan.intro || '').slice(0, 80)}…`);
