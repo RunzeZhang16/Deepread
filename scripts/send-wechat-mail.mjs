@@ -6,7 +6,8 @@
 // 例：smtp.qq.com / 465 / xxx@qq.com / 授权码 / 你的收件邮箱
 
 import nodemailer from 'nodemailer';
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 
 const HOST = process.env.SMTP_HOST;
 const PORT = Number(process.env.SMTP_PORT || 465);
@@ -50,17 +51,30 @@ const transporter = nodemailer.createTransport({
   auth: { user: USER, pass: PASS },
 });
 
+// 封面图：先找当期的，没有就现生成一张（文字转路径，不依赖字体）
+let coverPath = null;
+try {
+  const out = execFileSync(process.execPath, ['scripts/make-cover.mjs'], { encoding: 'utf8' }).trim().split('\n').pop();
+  if (out && existsSync(out)) coverPath = out;
+} catch (e) {
+  console.log('封面生成失败（不影响发信）：', e.message);
+}
+
+const attachments = [{ filename: `deepread-wechat-${date}.html`, path: file }];
+if (coverPath) attachments.unshift({ filename: `deepread-cover-${date}.png`, path: coverPath, cid: 'cover' });
+
 const info = await transporter.sendMail({
   from: `Deepread <${USER}>`,
   to: TO,
   subject: `${title}`,
   html: `<div style="font-family:-apple-system,'PingFang SC',sans-serif;">
+  ${coverPath ? '<img src="cid:cover" alt="封面" style="width:100%;max-width:900px;border-radius:6px;margin:0 0 16px;"/>' : ''}
   <p style="font-size:13px;color:#8a8378;margin:0 0 18px;">
-    ${date} 公众号稿 · 直接复制下面内容粘到公众号编辑器；附件也可下载
+    ${date} 公众号稿 · 封面图在附件里（deepread-cover-*.png，900×383）；正文直接复制到公众号编辑器
   </p>
   ${html}
 </div>`,
-  attachments: [{ filename: `deepread-wechat-${date}.html`, path: file }],
+  attachments,
 });
 
 console.log(`邮件已发送：${info.messageId} → ${TO}`);
