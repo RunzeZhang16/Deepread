@@ -11,6 +11,8 @@ function esc(s: string) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+
+
 function fmtCN(date: string) {
   const [y, m, d] = date.split('-');
   return `${Number(m)} 月 ${Number(d)} 日`;
@@ -286,7 +288,7 @@ export async function buildWechatArticle(): Promise<{ title: string; html: strin
   <section style="margin:0 0 26px;padding:16px 18px;background:#faf7f2;border-left:3px solid ${ACCENT};">
     <p style="margin:0;font-size:13px;line-height:1.9;color:#5c5347;">${esc(EPIGRAPH)}</p>
   </section>
-  <p style="margin:0 0 18px;font-size:14px;line-height:1.9;color:#44403c;">${esc(intro).replace(/\n+/g, '<br/><br/>')}</p>
+  <p style="margin:0 0 12px;font-size:14px;line-height:1.9;color:#44403c;">${esc(intro).replace(/\n+/g, '<br/><br/>')}</p>
   <section style="margin:0 0 30px;padding:16px 18px;background:#faf7f2;border-left:3px solid ${ACCENT};">
     <p style="margin:0;font-size:13.5px;line-height:1.85;color:#44403c;">
       这 ${picks.length} 篇的全文，以及每篇后面都能点开问题、和 AI 接着聊——都在「阅读原文」。
